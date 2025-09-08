@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+	<link rel="stylesheet" href="{% static 'css/style.css' %}">
+	<style>
+        /* 90% ширины экрана для модалки */
+        .modal-90w .modal-dialog {
+            max-width: 90vw;
+        }
+	</style>
+{% endblock extra_css %}
+
+{% block content %}
+	<div class="admin-content">
+		<div class="container-fluid">
+			<h1 class="h5 mb-3">Новая модель</h1>
+
+			<form method="post" enctype="multipart/form-data">
+				{% csrf_token %}
+
+				<div class="row g-3">
+					<!-- слева: основные поля модели -->
+					<div class="col-12 col-lg-3">
+						<div class="card">
+							<div class="card-header py-2"><strong>Основные данные</strong></div>
+							<div class="card-body small">
+								{# 1) Блок загрузки картинки с drag&drop + превью #}
+								<div class="mb-2">
+									<label class="form-label mb-1">Изображение</label>
+
+									<div id="img-drop"
+									     class="border rounded p-3 text-center"
+									     style="cursor:pointer;"
+											{% if spm.image and spm.image.image %}
+                                         data-initial-src="{{ spm.image.image.url }}"
+											{% endif %}>
+										<div class="small text-muted mb-2">
+											Перетащите файл сюда или нажмите, чтобы выбрать
+										</div>
+
+										<img id="img-preview" src="#" alt="preview"
+										     style="max-width:100%; display:none;">
+										<div id="img-filename" class="small text-muted mt-2"
+										     style="display:none;"></div>
+
+										<div class="mt-2 d-flex gap-2 justify-content-center">
+											<button type="button" id="img-clear"
+											        class="btn btn-outline-secondary btn-sm" style="display:none;">
+												Очистить
+											</button>
+										</div>
+									</div>
+
+									{# скрытый FK и реальный file input — как и раньше #}
+									{{ form_spm.image }}
+									{{ form_spm.image_file }}
+									{% if form_spm.image_file.errors %}
+										<div class="text-danger small">{{ form_spm.image_file.errors|join:", " }}</div>
+									{% endif %}
+
+									<div id="img-error" class="text-danger small mt-1" style="display:none;"></div>
+								</div>
+
+								{% for f in form_spm %}
+									{% if f.name not in "image image_file discount cutting_price transfer_price print_price embroidery_price sewing_loss_percent other_expenses_percent profitability commission" %}
+										<div class="mb-2">
+											<label class="form-label mb-1">{{ f.label }}</label>
+											{{ f }}
+											{% if f.errors %}
+												<div class="text-danger small">{{ f.errors|join:", " }}</div>{% endif %}
+										</div>
+									{% endif %}
+								{% endfor %}
+
+								{# ==== Кнопка показать/скрыть расширенные настройки ==== #}
+								<button class="btn btn-outline-secondary btn-sm mb-2 w-100"
+								        type="button"
+								        data-bs-toggle="collapse"
+								        data-bs-target="#spm-advanced"
+								        aria-expanded="false"
+								        aria-controls="spm-advanced"
+								        id="spm-advanced-toggle">
+									Доп. Информация
+								</button>
+
+								{# ==== Сворачиваемый блок с расширенными полями ==== #}
+								<div class="collapse" id="spm-advanced">
+									<div class="border rounded p-2">
+										<div class="row g-2">
+											{% for f in form_spm %}
+												{% if f.name in "discount cutting_price transfer_price print_price embroidery_price sewing_loss_percent other_expenses_percent profitability commission" %}
+													<div class="col-12">
+														<label class="form-label mb-1">{{ f.label }}</label>
+														{{ f }}
+														{% if f.errors %}
+															<div class="text-danger small">{{ f.errors|join:", " }}</div>{% endif %}
+													</div>
+												{% endif %}
+											{% endfor %}
+										</div>
+									</div>
+								</div>
+
+							</div>
+						</div>
+					</div>
+
+					<!-- справа: первый вариант — через модалку -->
+					<div class="col-12 col-lg-9">
+						<div class="card">
+							<div class="card-header py-2 d-flex align-items-center justify-content-between">
+								<strong>Первый вариант</strong>
+								<button type="button"
+								        class="btn btn-success btn-sm"
+								        data-bs-toggle="modal"
+								        data-bs-target="#variantModal">
+									+ Добавить вариант
+								</button>
+							</div>
+
+							<div class="card-body small">
+								<div class="text-muted">
+									Нажмите «Добавить вариант», заполните поля в модальном окне и затем нажмите
+									«Создать» внизу страницы.
+								</div>
+								{# Можно отобразить краткое резюме, если поля уже заполнены (на случай ошибок валидации) #}
+								{% if form_var and form_var.data %}
+									<div class="mt-2">
+										<span class="badge bg-info-subtle text-dark">Черновик варианта заполнен</span>
+									</div>
+								{% endif %}
+							</div>
+						</div>
+
+						<div class="text-end mt-2">
+							<button class="btn btn-primary">Создать</button>
+						</div>
+					</div>
+				</div>
+
+				{# Модалка с полями варианта. ВАЖНО: теперь это часть основной формы! #}
+				<div class="modal fade modal-90w" id="variantModal" tabindex="-1" aria-hidden="true">
+					<div class="modal-dialog modal-dialog-centered modal-lg">
+						<div class="modal-content">
+							<div class="modal-header py-2">
+								<h5 class="modal-title">Первый вариант</h5>
+								<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+							</div>
+							<div class="modal-body small">
+								<div class="row g-2">
+									{% for f in form_var %}
+										<div class="col-md-4">
+											<label class="form-label mb-1">{{ f.label }}</label>
+											{{ f }}
+											{% if f.errors %}
+												<div class="text-danger small">{{ f.errors|join:", " }}</div>{% endif %}
+										</div>
+									{% endfor %}
+								</div>
+								<div class="form-text mt-2">
+									Подтвердите создание нажатием «Создать» внизу основной страницы.
+								</div>
+							</div>
+
+							<div class="modal-footer py-2">
+								<div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+									<!-- ЛЕВО: полезные ссылки -->
+									<div class="small text-muted">
+										Полезные ссылки:
+										<a href="{% url 'info:work_type-list' %}" target="_blank" class="ms-2">
+											Виды работ
+										</a>
+									</div>
+
+									<!-- ПРАВО: кнопки -->
+									<div class="d-flex gap-2">
+										<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">
+											Готово
+										</button>
+									</div>
+								</div>
+							</div>
+
+						</div>
+					</div>
+				</div>
+			</form>
+
+		</div>
+	</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Универсальная автоподстановка "Образец" для полей kind/name (с префиксом и без)
+  function wireSampleName(scope) {
+    const root = scope || document;
+
+    root.querySelectorAll('select[name$="kind"]').forEach((sel) => {
+      const nm = sel.getAttribute('name') || '';
+      // вычисляем префикс: "...kind" -> "..."
+      const prefix = nm.endsWith('kind') ? nm.slice(0, -'kind'.length) : '';
+      // пытаемся найти соответствующее поле name:
+      let nameInput =
+        root.querySelector(`input[name="${prefix}name"]`) ||
+        sel.form?.querySelector('input[name="name"]') ||
+        root.querySelector('input[name="name"]');
+
+      if (!nameInput) return;
+
+      const apply = () => {
+        if (sel.value === 'sample') {
+          nameInput.value = 'Образец';
+          nameInput.readOnly = true;
+          nameInput.classList.add('bg-body-secondary');
+        } else {
+          nameInput.readOnly = false;
+          nameInput.classList.remove('bg-body-secondary');
+        }
+      };
+
+      // первичное применение и подписка
+      apply();
+      sel.addEventListener('change', apply);
+    });
+  }
+
+  // Инициализация при загрузке страницы
+  document.addEventListener('DOMContentLoaded', () => {
+    wireSampleName(document);
+  });
+
+  // Инициализация при открытии модалки с вариантом
+  document.getElementById('variantModal')?.addEventListener('shown.bs.modal', (e) => {
+    wireSampleName(e.currentTarget);
+  });
+</script>
+
+<script>
+  // Превью/drag&drop для изображения (осталось как было, только без дублей)
+  document.addEventListener('DOMContentLoaded', function () {
+    const input = document.querySelector('input[type="file"][name$="image_file"]');
+    const drop = document.getElementById('img-drop');
+    const prev = document.getElementById('img-preview');
+    const nameEl = document.getElementById('img-filename');
+    const clearBtn = document.getElementById('img-clear');
+    const errEl = document.getElementById('img-error');
+
+    if (!input || !drop || !prev) return;
+
+    const MAX_SIZE_MB = 8;
+    const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    function showError(msg) {
+      if (!errEl) return;
+      errEl.textContent = msg || '';
+      errEl.style.display = msg ? 'block' : 'none';
+    }
+
+    function showPreviewFromFile(file) {
+      const url = URL.createObjectURL(file);
+      prev.src = url;
+      prev.style.display = 'block';
+      nameEl.style.display = 'block';
+      nameEl.textContent = file.name || 'Выбран файл';
+      clearBtn.style.display = 'inline-block';
+      showError('');
+      prev.onload = () => URL.revokeObjectURL(url);
+    }
+
+    function showPreviewFromUrl(url) {
+      if (!url) return;
+      prev.src = url;
+      prev.style.display = 'block';
+      nameEl.style.display = 'none';
+      clearBtn.style.display = 'inline-block';
+      showError('');
+    }
+
+    function clearSelection() {
+      input.value = '';
+      prev.src = '#';
+      prev.style.display = 'none';
+      nameEl.textContent = '';
+      nameEl.style.display = 'none';
+      clearBtn.style.display = 'none';
+      showError('');
+    }
+
+    function handle(files) {
+      const file = files && files[0];
+      if (!file) return;
+
+      if (ACCEPTED.length && !ACCEPTED.includes(file.type)) {
+        showError('Поддерживаются изображения: JPG, PNG, WEBP, GIF.');
+        return;
+      }
+      if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+        showError(`Файл слишком большой. Максимум ${MAX_SIZE_MB} МБ.`);
+        return;
+      }
+
+      showPreviewFromFile(file);
+    }
+
+    input.classList.add('d-none');
+    drop.addEventListener('click', () => input.click());
+    input.addEventListener('change', () => handle(input.files));
+
+    drop.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      drop.classList.add('bg-light');
+    });
+    drop.addEventListener('dragleave', () => drop.classList.remove('bg-light'));
+    drop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      drop.classList.remove('bg-light');
+      if (e.dataTransfer?.files) {
+        input.files = e.dataTransfer.files;
+        handle(input.files);
+      }
+    });
+
+    if (clearBtn) clearBtn.addEventListener('click', clearSelection);
+
+    const initial = drop.getAttribute('data-initial-src');
+    if (initial) showPreviewFromUrl(initial);
+  });
+</script>
+{% endblock extra_js %}

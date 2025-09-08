@@ -1,0 +1,740 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+	<link rel="stylesheet" href="{% static 'css/style.css' %}">
+	<style>
+        .modal-90w .modal-dialog {
+            max-width: 90vw;
+        }
+
+        .table {
+            font-size: 0.85rem;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table th {
+            font-weight: 600;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+
+	</style>
+
+
+{% endblock extra_css %}
+
+{% block content %}
+	<div class="admin-content">
+		<div class="row g-3">
+
+			<!-- Слева: форма модели -->
+			<div class="col-12 col-lg-3">
+				<form method="post" enctype="multipart/form-data">
+					{% csrf_token %}
+					<input type="hidden" name="action" value="save_spm">
+					<div class="card">
+						<div class="card-header py-2">
+							<strong>Модель: {{ spm.vendor_code }}</strong>
+						</div>
+						<div class="card-body small">
+
+							{# Блок изображения с превью #}
+							{# Блок изображения с drag&drop + превью #}
+							<div class="mb-2">
+								<label class="form-label mb-1">Изображение</label>
+
+								<div id="img-drop"
+								     class="border rounded p-3 text-center"
+								     style="cursor:pointer;"
+										{% if form_spm.instance.image and form_spm.instance.image.image %}
+                                     data-initial-src="{{ form_spm.instance.image.image.url }}"
+										{% endif %}>
+									<div class="small text-muted mb-2 ">
+										Перетащите файл сюда или нажмите, чтобы выбрать
+									</div>
+
+									<div class="text-center">
+										<img id="img-preview" src="#" alt="preview"
+										     style="max-width:80%; max-height:160px; display:none; margin:auto;"/>
+									</div>
+									<div id="img-filename" class="small text-muted mt-2 text-center"
+									     style="display:none;">
+									</div>
+
+									<div class="mt-2 d-flex gap-2 justify-content-center">
+										<button type="button" id="img-clear"
+										        class="btn btn-outline-secondary btn-sm" style="display:none;">
+											Очистить
+										</button>
+									</div>
+								</div>
+
+								{# скрытый FK и реальный file input — как и раньше #}
+								{{ form_spm.image }}
+								{{ form_spm.image_file }}
+
+								{% if form_spm.image_file.errors %}
+									<div class="text-danger small">{{ form_spm.image_file.errors|join:", " }}</div>
+								{% endif %}
+
+								<div id="img-error" class="text-danger small mt-1" style="display:none;"></div>
+							</div>
+
+							{# ==== Обычные поля (кроме image/image_file и «расширенных») ==== #}
+							{% for f in form_spm %}
+								{% if f.name not in "image image_file discount cutting_price transfer_price print_price embroidery_price sewing_loss_percent other_expenses_percent profitability commission" %}
+									<div class="mb-2">
+										<label class="form-label mb-1">{{ f.label }}</label>
+										{{ f }}
+										{% if f.errors %}
+											<div class="text-danger small">{{ f.errors|join:", " }}</div>{% endif %}
+									</div>
+								{% endif %}
+							{% endfor %}
+
+							{# ==== Кнопка показать/скрыть расширенные настройки ==== #}
+							<button type="button"
+							        class="dd-hdr hdr-advanced w-100"
+							        data-bs-toggle="collapse"
+							        data-bs-target="#spm-advanced"
+							        aria-expanded="false"
+							        aria-controls="spm-advanced"
+							        id="spm-advanced-toggle">
+								<span>Доп. информация</span>
+								<span class="right">
+    <i class="bi bi-chevron-down chev"></i>
+  </span>
+							</button>
+
+							{# ==== Сворачиваемый блок с расширенными полями ==== #}
+							<div class="collapse" id="spm-advanced">
+								<div class="border rounded p-2">
+									<div class="row g-2">
+										{% for f in form_spm %}
+											{% if f.name in "discount cutting_price transfer_price print_price embroidery_price sewing_loss_percent other_expenses_percent profitability commission" %}
+												<div class="col-12">
+													<label class="form-label mb-1">{{ f.label }}</label>
+													{{ f }}
+													{% if f.errors %}
+														<div class="text-danger small">{{ f.errors|join:", " }}</div>{% endif %}
+												</div>
+											{% endif %}
+										{% endfor %}
+									</div>
+								</div>
+							</div>
+
+						</div>
+
+						<div class="card-footer py-2 text-end">
+							<button class="btn btn-primary btn-sm w-100">Сохранить модель</button>
+						</div>
+					</div>
+				</form>
+			</div>
+
+			<!-- Справа: варианты -->
+			<div class="col-12 col-lg-9">
+				<div class="card mb-3">
+					<div class="card-header py-2 d-flex justify-content-between align-items-center">
+						<strong>Варианты</strong>
+						<button class="btn btn-success btn-sm" type="button"
+						        data-bs-toggle="modal" data-bs-target="#variantAddModal">
+							+ Добавить вариант
+						</button>
+					</div>
+
+					<div class="card-body">
+
+						{# === 1) Маркетинг === #}
+						{% with variants_by_kind.marketing as items %}
+							<button type="button"
+							        class="dd-hdr hdr-marketing"
+							        data-bs-toggle="collapse"
+							        data-bs-target="#secMarketing"
+							        aria-expanded="false"
+							        aria-controls="secMarketing">
+        <span class="d-flex align-items-center gap-2">
+          <span>Маркетинг</span>
+          <span class="text-muted small">({{ items|length }})</span>
+        </span>
+								<i class="bi bi-chevron-down chev"></i>
+							</button>
+
+							<div id="secMarketing" class="collapse dd-body">
+								{% if items %}
+									<div class="table-responsive">
+										<table class="table table-hover align-middle">
+											<thead>
+											<tr>
+												<th>Название</th>
+												<th>Цвет</th>
+												<th>Вид работы</th>
+												<th>Цена</th>
+												<th class="text-end">Действия</th>
+											</tr>
+											</thead>
+											<tbody>
+											{% for v in items %}
+												<tr id="v{{ v.id }}">
+													<td>{{ v.name }}</td>
+													<td>{{ v.description|default:"—" }}</td>
+													<td>{{ v.work_type|default:"—" }}</td>
+													<td>{{ v.unit_price|floatformat:2 }} $</td>
+													<td class="text-end">
+														<a class="btn btn-outline-primary btn-sm me-1"
+														   data-bs-toggle="modal" data-bs-target="#materialsModal"
+														   href="{% url 'sewing:variant-materials' v.id %}">Материалы</a>
+														<a class="btn btn-outline-secondary btn-sm me-1"
+														   data-bs-toggle="modal" data-bs-target="#accessoriesModal"
+														   href="{% url 'sewing:variant-accessories' v.id %}">Аксессуары</a>
+														{% if v.has_sizes_and_ops %}
+															<a class="btn btn-outline-info btn-sm me-1"
+															   data-bs-toggle="modal" data-bs-target="#sizesModal"
+															   href="{% url 'sewing:variant-sizes' v.id %}">Размеры</a>
+															<a class="btn btn-outline-dark btn-sm me-1"
+															   data-bs-toggle="modal" data-bs-target="#operationsModal"
+															   href="{% url 'sewing:variant-operations' v.id %}">Операции</a>
+														{% endif %}
+														<form method="post"
+														      action="{% url 'sewing:variant-clone' v.id %}"
+														      class="d-inline">
+															{% csrf_token %}
+															<button class="btn btn-outline-success btn-sm me-1"
+															        title="Клонировать">
+																<i class="bi bi-files"></i>
+															</button>
+														</form>
+														<a class="btn btn-outline-primary btn-sm"
+														   data-bs-toggle="modal" data-bs-target="#variantAddModal"
+														   href="{% url 'sewing:variant-edit' v.id %}"
+														   title="Редактировать">
+															<i class="bi bi-pencil"></i>
+														</a>
+													</td>
+												</tr>
+											{% endfor %}
+											</tbody>
+										</table>
+									</div>
+								{% else %}
+									<div class="text-muted">Нет вариантов в этом разделе.</div>
+								{% endif %}
+							</div>
+						{% endwith %}
+
+						{# === 2) Образец === #}
+						{% with variants_by_kind.sample as items %}
+							<button type="button"
+							        class="dd-hdr hdr-sample"
+							        data-bs-toggle="collapse"
+							        data-bs-target="#secSample"
+							        aria-expanded="false"
+							        aria-controls="secSample">
+        <span class="d-flex align-items-center gap-2">
+          <span>Образец</span>
+          <span class="text-muted small">({{ items|length }})</span>
+        </span>
+								<i class="bi bi-chevron-down chev"></i>
+							</button>
+
+							<div id="secSample" class="collapse dd-body">
+								{% if items %}
+									<div class="table-responsive">
+										<table class="table table-hover align-middle">
+											<thead>
+											<tr>
+												<th>Название</th>
+												<th>Цвет</th>
+												<th>Вид работы</th>
+												<th>Цена</th>
+												<th class="text-end">Действия</th>
+											</tr>
+											</thead>
+											<tbody>
+											{% for v in items %}
+												<tr id="v{{ v.id }}">
+													<td>{{ v.name }}</td>
+													<td>{{ v.description|default:"—" }}</td>
+													<td>{{ v.work_type|default:"—" }}</td>
+													<td>{{ v.unit_price|floatformat:2 }} $</td>
+													<td class="text-end">
+														<a class="btn btn-outline-primary btn-sm me-1"
+														   data-bs-toggle="modal" data-bs-target="#materialsModal"
+														   href="{% url 'sewing:variant-materials' v.id %}">Материалы</a>
+														<a class="btn btn-outline-secondary btn-sm me-1"
+														   data-bs-toggle="modal" data-bs-target="#accessoriesModal"
+														   href="{% url 'sewing:variant-accessories' v.id %}">Аксессуары</a>
+														{% if v.has_sizes_and_ops %}
+															<a class="btn btn-outline-info btn-sm me-1"
+															   data-bs-toggle="modal" data-bs-target="#sizesModal"
+															   href="{% url 'sewing:variant-sizes' v.id %}">Размеры</a>
+															<a class="btn btn-outline-dark btn-sm me-1"
+															   data-bs-toggle="modal" data-bs-target="#operationsModal"
+															   href="{% url 'sewing:variant-operations' v.id %}">Операции</a>
+														{% endif %}
+														<form method="post"
+														      action="{% url 'sewing:variant-clone' v.id %}"
+														      class="d-inline">
+															{% csrf_token %}
+															<button class="btn btn-outline-success btn-sm me-1"
+															        title="Клонировать">
+																<i class="bi bi-files"></i>
+															</button>
+														</form>
+														<a class="btn btn-outline-primary btn-sm"
+														   data-bs-toggle="modal" data-bs-target="#variantAddModal"
+														   href="{% url 'sewing:variant-edit' v.id %}"
+														   title="Редактировать">
+															<i class="bi bi-pencil"></i>
+														</a>
+													</td>
+												</tr>
+											{% endfor %}
+											</tbody>
+										</table>
+									</div>
+								{% else %}
+									<div class="text-muted">Нет вариантов в этом разделе.</div>
+								{% endif %}
+							</div>
+						{% endwith %}
+
+						{# === 3) Производство (бывш. Плановый) === #}
+						{% with variants_by_kind.planned as items %}
+							<button type="button"
+							        class="dd-hdr hdr-planned"
+							        data-bs-toggle="collapse"
+							        data-bs-target="#secPlanned"
+							        aria-expanded="false"
+							        aria-controls="secPlanned">
+        <span class="d-flex align-items-center gap-2">
+          <span>Производство</span>
+          <span class="text-muted small">({{ items|length }})</span>
+        </span>
+								<i class="bi bi-chevron-down chev"></i>
+							</button>
+
+							<div id="secPlanned" class="collapse dd-body">
+								{% if items %}
+									<div class="table-responsive">
+										<table class="table table-hover align-middle">
+											<thead>
+											<tr>
+												<th>Название</th>
+												<th>Цвет</th>
+												<th>Вид работы</th>
+												<th>Цена</th>
+												<th class="text-end">Действия</th>
+											</tr>
+											</thead>
+											<tbody>
+											{% for v in items %}
+												<tr id="v{{ v.id }}">
+													<td>{{ v.name }}</td>
+													<td>{{ v.description|default:"—" }}</td>
+													<td>{{ v.work_type|default:"—" }}</td>
+													<td>{{ v.unit_price|floatformat:2 }} $</td>
+													<td class="text-end">
+														<a class="btn btn-outline-primary btn-sm me-1"
+														   data-bs-toggle="modal" data-bs-target="#materialsModal"
+														   href="{% url 'sewing:variant-materials' v.id %}">Материалы</a>
+														<a class="btn btn-outline-secondary btn-sm me-1"
+														   data-bs-toggle="modal" data-bs-target="#accessoriesModal"
+														   href="{% url 'sewing:variant-accessories' v.id %}">Аксессуары</a>
+														{% if v.has_sizes_and_ops %}
+															<a class="btn btn-outline-info btn-sm me-1"
+															   data-bs-toggle="modal" data-bs-target="#sizesModal"
+															   href="{% url 'sewing:variant-sizes' v.id %}">Размеры</a>
+															<a class="btn btn-outline-dark btn-sm me-1"
+															   data-bs-toggle="modal" data-bs-target="#operationsModal"
+															   href="{% url 'sewing:variant-operations' v.id %}">Операции</a>
+														{% endif %}
+														<form method="post"
+														      action="{% url 'sewing:variant-clone' v.id %}"
+														      class="d-inline">
+															{% csrf_token %}
+															<button class="btn btn-outline-success btn-sm me-1"
+															        title="Клонировать">
+																<i class="bi bi-files"></i>
+															</button>
+														</form>
+														<a class="btn btn-outline-primary btn-sm"
+														   data-bs-toggle="modal" data-bs-target="#variantAddModal"
+														   href="{% url 'sewing:variant-edit' v.id %}"
+														   title="Редактировать">
+															<i class="bi bi-pencil"></i>
+														</a>
+													</td>
+												</tr>
+											{% endfor %}
+											</tbody>
+										</table>
+									</div>
+								{% else %}
+									<div class="text-muted">Нет вариантов в этом разделе.</div>
+								{% endif %}
+							</div>
+						{% endwith %}
+
+					</div>
+				</div>
+			</div>
+
+		</div>
+	</div>
+
+	<!-- Пустые модалки: контент грузим по fetch -->
+	<div class="modal fade modal-90w" id="materialsModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-scrollable">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+	<div class="modal fade modal-90w" id="accessoriesModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-scrollable">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+	<div class="modal fade modal-90w" id="sizesModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-scrollable">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+	<div class="modal fade modal-90w" id="operationsModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-scrollable">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+
+	<!-- уже есть -->
+	<div class="modal fade" id="materialFormModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+
+	<!-- НОВОЕ: форма аксессуара -->
+	<div class="modal fade" id="accessoryFormModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+
+	<!-- НОВОЕ: форма операции -->
+	<div class="modal fade" id="operationFormModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+	<!-- Вторая модалка для форм размеров -->
+	<div class="modal fade" id="sizeFormModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+
+	<div class="modal fade modal-90w" id="variantAddModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg">
+			<div class="modal-content">
+				{# Встроенная форма — используется, когда нажимаем «Добавить» (без href) #}
+				<form method="post">
+					{% csrf_token %}
+					<input type="hidden" name="action" value="add_variant">
+					<div class="modal-header">
+						<h5 class="modal-title">Добавить вариант</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						<div class="row g-2">
+							{% for f in form_var %}
+								<div class="col-md-6">
+									<label class="form-label mb-1">{{ f.label }}</label>
+									{{ f }}
+									{% if f.errors %}
+										<div class="text-danger small">{{ f.errors|join:", " }}</div>{% endif %}
+								</div>
+							{% endfor %}
+						</div>
+					</div>
+					<div class="modal-footer py-2">
+						<div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+							<!-- ЛЕВО: полезные ссылки -->
+							<div class="small text-muted">
+								Полезные ссылки:
+								<a href="{% url 'info:work_type-list' %}" target="_blank" class="ms-2">
+									Виды работ
+								</a>
+							</div>
+
+							<!-- ПРАВО: кнопки -->
+							<div class="d-flex gap-2">
+								<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена
+								</button>
+								<button type="submit" class="btn btn-primary btn-sm js-submit">Сохранить</button>
+							</div>
+						</div>
+					</div>
+
+				</form>
+			</div>
+		</div>
+	</div>
+{% endblock %}
+
+{% block extra_js %}
+	<script>
+        function setupCrud(listId, formId) {
+            const listModal = document.getElementById(listId);
+            const formModal = document.getElementById(formId);
+
+            const hideModal = (el) => {
+                if (!el) return;
+                const closer = el.querySelector('[data-bs-dismiss="modal"], .btn-close');
+                if (closer) {
+                    closer.click();
+                    return;
+                }
+                el.classList.remove('show');
+                el.style.display = 'none';
+                el.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('modal-open');
+                document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+            };
+
+            // 1) Список
+            if (listModal) {
+                listModal.addEventListener('show.bs.modal', (e) => {
+                    const trg = e.relatedTarget;
+                    const url = trg && trg.getAttribute('href');
+                    if (!url) return;
+                    listModal.dataset.href = url;
+                    fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                        .then(r => r.text())
+                        .then(html => {
+                            listModal.querySelector('.modal-content').innerHTML = html;
+                            // Если внутри списка есть select2 — инициализируем только этот модальный DOM
+                            window.reinitSelect2?.(listModal);
+                        });
+                });
+            }
+
+            // 2) Форма
+            if (formModal) {
+                formModal.addEventListener('show.bs.modal', (e) => {
+                    const trg = e.relatedTarget;
+                    const url = trg && trg.getAttribute('href');
+                    if (!url) return;
+                    fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                        .then(r => r.text())
+                        .then(html => {
+                            formModal.querySelector('.modal-content').innerHTML = html;
+                            window.reinitSelect2?.(formModal);          // <-- ВАЖНО: в пределах модалки
+                            // логика "Образец"
+                            try {
+                                (window.lockVariantNameForSample || (() => {
+                                }))(formModal);
+                            } catch (e) {
+                            }
+                        });
+                });
+
+                // 3) Сабмит формы
+                formModal.addEventListener('submit', (e) => {
+                    const form = e.target.closest('.js-crud-form');
+                    if (!form) return;
+                    e.preventDefault();
+                    fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: {'X-Requested-With': 'XMLHttpRequest'}
+                    })
+                        .then(res => {
+                            if (res.status === 204) {
+                                hideModal(formModal);
+                                if (listModal?.dataset.href) {
+                                    return fetch(listModal.dataset.href, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                                        .then(r => r.text())
+                                        .then(html => {
+                                            listModal.querySelector('.modal-content').innerHTML = html;
+                                            window.reinitSelect2?.(listModal);
+                                        });
+                                }
+                                return null;
+                            }
+                            // re-render с ошибками
+                            return res.text().then(html => {
+                                formModal.querySelector('.modal-content').innerHTML = html;
+                                window.reinitSelect2?.(formModal);          // <-- переинициализация
+                                try {
+                                    (window.lockVariantNameForSample || (() => {
+                                    }))(formModal);
+                                } catch (e) {
+                                }
+                            });
+                        });
+                });
+            }
+
+            // 4) Удаление из списка
+            document.addEventListener('submit', (e) => {
+                const del = e.target.closest('.js-crud-delete');
+                if (!del) return;
+                if (!listModal?.contains(del)) return;
+                e.preventDefault();
+                fetch(del.action, {
+                    method: 'POST',
+                    body: new FormData(del),
+                    headers: {'X-Requested-With': 'XMLHttpRequest'}
+                })
+                    .then(res => {
+                        if (res.status === 204 && listModal?.dataset.href) {
+                            return fetch(listModal.dataset.href, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                                .then(r => r.text())
+                                .then(html => {
+                                    listModal.querySelector('.modal-content').innerHTML = html;
+                                    window.reinitSelect2?.(listModal);
+                                });
+                        }
+                        return null;
+                    });
+            });
+        }
+
+        window.addEventListener('load', () => {
+            setupCrud('materialsModal', 'materialFormModal');
+            setupCrud('accessoriesModal', 'accessoryFormModal');
+            setupCrud('operationsModal', 'operationFormModal');
+            setupCrud('sizesModal', 'sizeFormModal');
+        });
+	</script>
+	<script>
+        (function () {
+            // Список модалок, куда мы хотим подгружать HTML по href из триггера
+            const MODALS = [
+                'variantAddModal',     // редактирование/создание варианта
+                'accessoriesModal',    // список аксессуаров
+                'sizesModal',          // список размеров
+                'operationsModal',     // список операций
+                'sizeFormModal',     // список операций
+                // materialsModal уже обрабатывается твоим большим скриптом, можно оставить здесь тоже — не страшно
+            ];
+
+            MODALS.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('show.bs.modal', (e) => {
+                    const trigger = e.relatedTarget;
+                    // если открываем «Добавить вариант» без href (встроенная форма) — пропускаем
+                    if (!trigger || !trigger.getAttribute('href')) return;
+
+                    const url = trigger.getAttribute('href');
+                    fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                        .then(r => r.text())
+                        .then(html => {
+                            el.querySelector('.modal-content').innerHTML = html;
+                            // применим «Образец» к подгруженной форме, если это форма варианта
+                            try {
+                                (window.lockVariantNameForSample || function () {
+                                })(el.querySelector('.modal-content'));
+                            } catch (_) {
+                            }
+                        })
+                        .catch(console.error);
+                });
+            });
+        })();
+	</script>
+	<script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Drag & Drop для изображения (та же логика, что в model-create)
+            const input = document.querySelector('input[type="file"][name$="image_file"]');
+            const drop = document.getElementById('img-drop');
+            const prev = document.getElementById('img-preview');
+            const nameEl = document.getElementById('img-filename');
+            const clearBtn = document.getElementById('img-clear');
+            const errEl = document.getElementById('img-error');
+
+            if (!input || !drop || !prev) return;
+
+            const MAX_SIZE_MB = 8;
+            const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+            function showError(msg) {
+                if (!errEl) return;
+                errEl.textContent = msg || '';
+                errEl.style.display = msg ? 'block' : 'none';
+            }
+
+            function showPreviewFromFile(file) {
+                const url = URL.createObjectURL(file);
+                prev.src = url;
+                prev.style.display = 'block';
+                nameEl.style.display = 'block';
+                nameEl.textContent = file.name || 'Выбран файл';
+                clearBtn.style.display = 'inline-block';
+                showError('');
+                prev.onload = () => URL.revokeObjectURL(url);
+            }
+
+            function showPreviewFromUrl(url) {
+                if (!url) return;
+                prev.src = url;
+                prev.style.display = 'block';
+                nameEl.style.display = 'none';
+                clearBtn.style.display = 'inline-block';
+                showError('');
+            }
+
+            function clearSelection() {
+                input.value = '';
+                prev.src = '#';
+                prev.style.display = 'none';
+                nameEl.textContent = '';
+                nameEl.style.display = 'none';
+                clearBtn.style.display = 'none';
+                showError('');
+            }
+
+            function handle(files) {
+                const file = files && files[0];
+                if (!file) return;
+
+                if (ACCEPTED.length && !ACCEPTED.includes(file.type)) {
+                    showError('Поддерживаются изображения: JPG, PNG, WEBP, GIF.');
+                    return;
+                }
+                if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+                    showError(`Файл слишком большой. Максимум ${MAX_SIZE_MB} МБ.`);
+                    return;
+                }
+
+                showPreviewFromFile(file);
+            }
+
+            input.classList.add('d-none');
+            drop.addEventListener('click', () => input.click());
+            input.addEventListener('change', () => handle(input.files));
+
+            drop.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                drop.classList.add('bg-light');
+            });
+            drop.addEventListener('dragleave', () => drop.classList.remove('bg-light'));
+            drop.addEventListener('drop', (e) => {
+                e.preventDefault();
+                drop.classList.remove('bg-light');
+                if (e.dataTransfer?.files) {
+                    input.files = e.dataTransfer.files;
+                    handle(input.files);
+                }
+            });
+
+            if (clearBtn) clearBtn.addEventListener('click', clearSelection);
+
+            const initial = drop.getAttribute('data-initial-src');
+            if (initial) showPreviewFromUrl(initial);
+        });
+	</script>
+{% endblock extra_js %}

@@ -1,0 +1,81 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в систему | Швейное производство</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/login.css' %}">
+</head>
+<body>
+    <div class="login-container">
+        <div class="brand-section">
+            <div class="brand-logo">
+                <i class="fas fa-vest"></i>
+                <h1>СТАНДАРТ ШВЕЙ</h1>
+            </div>
+            <div class="brand-tagline">
+                Профессиональная система управления швейным производством.
+            </div>
+        </div>
+        
+        <div class="login-section">
+            <div class="login-header">
+                <h2>Вход в систему</h2>
+                <p>Введите свои учетные данные для доступа к панели управления</p>
+            </div>
+            
+            <form method="post" action="{% url 'login' %}">
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {% for error in form.non_field_errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label for="id_username">Имя пользователя</label>
+                    <input type="text" name="username" id="id_username" class="form-control" placeholder="Введите имя пользователя" required>
+                </div>
+                
+                <div class="form-group password-toggle">
+                    <label for="id_password">Пароль</label>
+                    <input type="password" name="password" id="id_password" class="form-control" placeholder="Введите пароль" required>
+                    <span class="toggle-password" id="togglePassword">
+                        <i class="far fa-eye"></i>
+                    </span>
+                </div>
+                
+                <div class="remember-forgot">
+                    <div class="remember-me">
+                        <input type="checkbox" name="remember_me" id="remember">
+                        <label for="remember">Запомнить меня</label>
+                    </div>
+                    <a href="#" class="forgot-password">Забыли пароль?</a>
+                </div>
+                
+                <button type="submit" class="login-button">Войти</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const togglePassword = document.getElementById('togglePassword');
+            const password = document.getElementById('id_password');
+            
+            togglePassword.addEventListener('click', function() {
+                const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                password.setAttribute('type', type);
+                
+                this.querySelector('i').classList.toggle('fa-eye');
+                this.querySelector('i').classList.toggle('fa-eye-slash');
+            });
+        });
+    </script>
+</body>
+</html>

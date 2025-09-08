@@ -1,0 +1,72 @@
+<div class="modal-header py-4 position-relative">
+  <!-- Левая зона: кнопки -->
+  <div class="position-absolute start-0 ms-2 d-flex gap-2">
+    <a href="{% url 'sewing:variant-accessories-fill' variant.id %}"
+       class="btn btn-outline-primary btn-sm"
+       data-bs-toggle="modal"
+       data-bs-target="#accessoryFormModal">
+      Заполнить из…
+    </a>
+    <a href="{% url 'sewing:variant-accessory-create' variant.id %}"
+       class="btn btn-success btn-sm"
+       data-bs-toggle="modal"
+       data-bs-target="#accessoryFormModal">
+      + Добавить
+    </a>
+  </div>
+
+  <!-- Центр: заголовок -->
+  <h5 class="modal-title mx-auto">Аксессуары: {{ variant.name }}</h5>
+
+  <!-- Справа: крестик -->
+  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+
+
+<div class="modal-body small">
+	{% if accessories %}
+		<div class="table-responsive">
+			<table class="table table-sm align-middle">
+				<thead>
+				<tr class="text-center">
+					<th>Аксессуар</th>
+					<th>Кол-во</th>
+					<th>Цена</th>
+					<th>Локал.</th>
+					<th>Прим.</th>
+					<th>Действия</th>
+				</tr>
+				</thead>
+				<tbody>
+				{% for a in accessories %}
+					<tr class="text-center">
+						<td>{{ a.accessory.title }}</td>
+						<td>{{ a.count }}</td>
+						<td>{{ a.price|floatformat:2 }}</td>
+						<td>{% if a.local_produce %}Да{% else %}—{% endif %}</td>
+						<td class="text-truncate" style="max-width: 200px">{{ a.notes|default:"" }}</td>
+						<td>
+							<a href="{% url 'sewing:variant-accessory-edit' a.id %}"
+							   class="btn btn-outline-primary btn-sm"
+							   data-bs-toggle="modal" data-bs-target="#accessoryFormModal">Редактировать</a>
+							<form method="post"
+							      action="{% url 'sewing:variant-accessory-delete' a.id %}"
+							      class="d-inline js-crud-delete">
+								{% csrf_token %}
+								<button type="submit" class="btn btn-outline-danger btn-sm">Удалить</button>
+							</form>
+						</td>
+					</tr>
+				{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	{% else %}
+		<div class="text-muted">Аксессуаров пока нет.</div>
+	{% endif %}
+</div>
+
+<div class="modal-footer py-2">
+	<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
+</div>

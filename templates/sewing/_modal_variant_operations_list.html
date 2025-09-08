@@ -1,0 +1,75 @@
+<div class="modal-header py-4">
+  <div class="d-flex gap-2">
+    <a href="{% url 'sewing:variant-operations-fill' variant.id %}"
+       class="btn btn-outline-primary btn-sm"
+       data-bs-toggle="modal"
+       data-bs-target="#operationFormModal">
+      Заполнить из…
+    </a>
+    <a href="{% url 'sewing:variant-operation-create' variant.id %}"
+       class="btn btn-success btn-sm"
+       data-bs-toggle="modal"
+       data-bs-target="#operationFormModal">
+      + Добавить
+    </a>
+  </div>
+
+  <!-- Заголовок по центру -->
+  <h5 class="modal-title mx-auto">Операции: {{ variant.name }}</h5>
+
+  <!-- Крестик справа -->
+  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+
+
+<div class="modal-body small">
+	{% if operations %}
+		<div class="table-responsive">
+			<table class="table table-sm align-middle">
+				<thead>
+				<tr class="text-center">
+					<th>Операция</th>
+					<th>Цена</th>
+					<th>Длительность, сек</th>
+					<th>Примечание</th>
+					<th>Действия</th>
+				</tr>
+				</thead>
+				<tbody>
+				{% for o in operations %}
+					<tr class="text-center">
+						<td>
+							{# показываем либо справочник, либо денормализованное имя #}
+							{{ o.operation.name|default:o.operation.name }}
+						</td>
+						<td>{{ o.price|floatformat:2 }}</td>
+						<td>{{ o.seconds }}</td>
+						<td class="text-truncate" style="max-width: 240px">{{ o.notes|default:"" }}</td>
+						<td>
+							<a href="{% url 'sewing:variant-operation-edit' o.id %}"
+							   class="btn btn-outline-primary btn-sm"
+							   data-bs-toggle="modal"
+							   data-bs-target="#operationFormModal">
+								Редактировать
+							</a>
+							<form method="post"
+							      action="{% url 'sewing:variant-operation-delete' o.id %}"
+							      class="d-inline js-crud-delete">
+								{% csrf_token %}
+								<button type="submit" class="btn btn-outline-danger btn-sm">Удалить</button>
+							</form>
+						</td>
+					</tr>
+				{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	{% else %}
+		<div class="text-muted">Операций пока нет.</div>
+	{% endif %}
+</div>
+
+<div class="modal-footer py-2">
+	<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
+</div>

@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Settings{% endblock title %}
+
+{% block page_id %}settings{% endblock page_id %}
+
+{% block content %}
+	<!-- Main Content -->
+	<main class="admin-main">
+		<div class="container-fluid p-4 p-lg-4">
+
+			<!-- Заголовок -->
+			<div class="d-flex justify-content-between align-items-center mb-4">
+				<div>
+					<h1 class="h3 mb-0">Настройки</h1>
+					<p class="text-muted mb-0">Управление языком интерфейса, темой и хранилищем</p>
+				</div>
+				<div class="d-flex gap-2">
+					<button type="button" class="btn btn-outline-secondary" @click="resetSettings()">
+						<i class="bi bi-arrow-clockwise me-2"></i>Сбросить
+					</button>
+					<button type="button" class="btn btn-primary" @click="saveSettings()">
+						<i class="bi bi-check-lg me-2"></i>Сохранить
+					</button>
+				</div>
+			</div>
+
+			<!-- Компонент настроек -->
+			<div x-data="settingsComponent" x-init="init()" x-cloak>
+				<div class="row g-4">
+
+					<!-- Навигация по разделам -->
+					<div class="col-lg-3">
+						<nav class="nav nav-pills flex-column">
+							<a class="nav-link" :class="{ 'active': activeSection === 'general' }" href="#"
+							   @click="setActiveSection('general')">
+								<i class="bi bi-gear me-2"></i>Общие
+							</a>
+							<a class="nav-link" :class="{ 'active': activeSection === 'appearance' }" href="#"
+							   @click="setActiveSection('appearance')">
+								<i class="bi bi-palette me-2"></i>Оформление
+							</a>
+							<a class="nav-link" :class="{ 'active': activeSection === 'storage' }" href="#"
+							   @click="setActiveSection('storage')">
+								<i class="bi bi-hdd me-2"></i>Хранилище
+							</a>
+						</nav>
+					</div>
+
+					<!-- Содержимое -->
+					<div class="col-lg-9">
+
+						<!-- Общие -->
+						<div x-show="activeSection === 'general'" class="settings-section">
+							<h5 class="mb-3">Общие</h5>
+
+							<div class="setting-item d-flex align-items-center justify-content-between mb-3">
+								<div class="me-3">
+									<h6 class="mb-1">Язык интерфейса</h6>
+									<small class="text-muted">Выберите язык приложения</small>
+								</div>
+								<select class="form-select w-auto" x-model="settings.language">
+									<option value="ru">Русский</option>
+									<option value="uz">Oʻzbekcha</option>
+									<option value="en">English</option>
+									<option value="tr">Türkçe</option>
+								</select>
+							</div>
+						</div>
+
+						<!-- Оформление -->
+						<div x-show="activeSection === 'appearance'" class="settings-section">
+							<h5 class="mb-3">Оформление</h5>
+
+							<div class="mb-3">
+								<h6 class="mb-2">Тема</h6>
+								<div class="row g-3">
+									<div class="col-6 col-md-4">
+										<div class="theme-option" :class="{ 'active': settings.theme === 'light' }"
+										     @click="setTheme('light')">
+											<div class="theme-preview light"></div>
+											<strong>Светлая</strong>
+										</div>
+									</div>
+									<div class="col-6 col-md-4">
+										<div class="theme-option" :class="{ 'active': settings.theme === 'dark' }"
+										     @click="setTheme('dark')">
+											<div class="theme-preview dark"></div>
+											<strong>Тёмная</strong>
+										</div>
+									</div>
+									<div class="col-6 col-md-4">
+										<div class="theme-option" :class="{ 'active': settings.theme === 'auto' }"
+										     @click="setTheme('auto')">
+											<div class="theme-preview auto"></div>
+											<strong>Авто</strong>
+										</div>
+									</div>
+								</div>
+							</div>
+
+						</div>
+
+						<!-- Хранилище -->
+						<div x-show="activeSection === 'storage'" class="settings-section">
+							<h5 class="mb-3">Хранилище</h5>
+
+							<div class="mb-3">
+								<div class="d-flex justify-content-between align-items-center mb-2">
+									<h6 class="mb-0">Использование</h6>
+									<span class="text-muted" x-text="`${storageUsed}GB из ${storageTotal}GB`"></span>
+								</div>
+								<div class="storage-bar">
+									<div class="storage-progress" :style="`width: ${storagePercentage}%`"></div>
+								</div>
+								<div class="d-flex justify-content-between mt-1">
+									<small class="text-muted">Свободно: <span
+											x-text="`${storageRemaining}GB`"></span></small>
+									<small class="text-muted" x-text="`${storagePercentage}%`"></small>
+								</div>
+							</div>
+
+							<div class="d-flex gap-2">
+								<button class="btn btn-outline-primary" @click="clearCache()">
+									<i class="bi bi-arrow-clockwise me-2"></i>Очистить кэш
+								</button>
+								<button class="btn btn-outline-secondary" @click="optimizeStorage()">
+									<i class="bi bi-speedometer2 me-2"></i>Оптимизировать
+								</button>
+							</div>
+						</div>
+
+					</div>
+				</div>
+			</div>
+
+		</div>
+	</main>
+
+{% endblock content %}

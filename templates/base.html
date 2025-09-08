@@ -1,0 +1,234 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru" data-bs-theme="light">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<meta name="theme-color" content="#6366f1">
+	<title>{% block title %}Dashboard - Modern Bootstrap Admin{% endblock %}</title>
+
+	<!-- Fonts -->
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+	<!-- Styles -->
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+
+	<link rel="stylesheet" href="{% static 'css/main.css' %}">
+	<link rel="stylesheet" href="{% static 'css/select2-init.css' %}">
+
+	<script type="module" src="{% static 'js/main.js' %}" defer></script>
+	{% block extra_css %}{% endblock %}
+</head>
+<body data-page="{% block page_id %}dashboard{% endblock %}" class="admin-layout">
+
+<!-- Global Messages (fixed) -->
+<div id="global-messages"
+     class="position-fixed start-50 translate-middle-x mt-2"
+     style="top:30px; z-index:2000; width:min(560px,92vw); pointer-events:none;">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} fade show shadow-sm mb-2 text-center" role="alert" style="pointer-events:auto;">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
+
+<!-- Loading Screen (если используешь) -->
+<div id="loading-screen" class="loading-screen d-none">
+	<div class="loading-spinner">
+		<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+	</div>
+</div>
+
+<div class="admin-wrapper" id="admin-wrapper">
+	<!-- Header -->
+	<header class="admin-header">
+		<nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+			<div class="container-fluid">
+				<!-- Brand -->
+				<a class="navbar-brand d-flex align-items-center" href="{% url 'dashboard' %}">
+					{#					<img src="{% static 'images/logo.svg' %}" alt="Logo" height="32" class="me-2">#}
+					<span class="h5 mb-0 fw-bold text-primary">Metis</span>
+				</a>
+
+				<!-- Right controls -->
+				<div class="navbar-nav flex-row align-items-center gap-2 ms-auto">
+					
+					<!-- Fullscreen -->
+					<button class="btn btn-outline-secondary" type="button" data-fullscreen-toggle title="Fullscreen">
+						<i class="bi bi-arrows-fullscreen"></i>
+					</button>
+
+					<!-- User -->
+					<div class="dropdown">
+						<button class="btn btn-outline-secondary d-flex align-items-center dropdown-toggle"
+						        id="userMenuBtn" type="button" data-bs-toggle="dropdown" data-bs-display="static">
+							<img src="{% static 'images/avatar.png' %}" class="rounded-circle me-2" width="24"
+							     height="24" alt="">
+							<span class="d-none d-md-inline">{{ request.user.get_short_name|default:request.user.username }}</span>
+						</button>
+						<ul class="dropdown-menu dropdown-menu-end">
+							<li><a class="dropdown-item" href="{% url 'settings' %}"><i class="bi bi-gear me-2"></i>Настройки</a>
+							</li>
+							<li>
+								<hr class="dropdown-divider">
+							</li>
+							<li>
+								<form method="post" action="{% url 'logout' %}">{% csrf_token %}
+									<button type="submit" class="dropdown-item"><i
+											class="bi bi-box-arrow-right me-2"></i>Выйти
+									</button>
+								</form>
+							</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</nav>
+	</header>
+
+	<!-- Sidebar -->
+	<aside class="admin-sidebar" id="admin-sidebar">
+		<div class="sidebar-content">
+			<nav class="sidebar-nav">
+				<ul class="nav flex-column">
+					<li class="nav-item">
+						<a class="nav-link" href="{% url 'dashboard' %}">
+							<i class="bi bi-speedometer2"></i><span>Dashboard</span>
+						</a>
+					</li>
+
+					<li class="nav-item">
+						<a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#directorySubmenu">
+							<i class="bi bi-puzzle"></i><span>Справочник</span><i
+								class="bi bi-chevron-down ms-auto"></i>
+						</a>
+						<div class="collapse" id="directorySubmenu">
+							<ul class="nav nav-submenu">
+								<li class="nav-item"><a class="nav-link" href="{% url 'info:materials-list' %}">
+									<i class="bi bi-award"></i><span>Материалы</span></a></li>
+								<li class="nav-item"><a class="nav-link" href="{% url 'info:material-groups' %}">
+									<i class="bi bi-card-text"></i><span>Гр.Материалов</span></a></li>
+								<li class="nav-item"><a class="nav-link" href="{% url 'info:spec-list' %}">
+									<i class="bi bi-window"></i><span>Спецификации</span></a></li>
+								<li class="nav-item"><a class="nav-link" href="{% url 'info:firm-list' %}">
+									<i class="bi bi-ui-checks"></i><span>Фирмы</span></a></li>
+								<li class="nav-item"><a class="nav-link" href="{% url 'info:process-list' %}">
+									<i class="bi bi-table"></i><span>Процессы</span></a></li>
+								<li class="nav-item"><a class="nav-link" href="{% url 'info:work_type-list' %}">
+									<i class="bi bi-exclamation-triangle"></i><span>Виды работ</span></a></li>
+								<li class="nav-item"><a class="nav-link" href="{% url 'info:colors-list' %}">
+									<i class="bi bi-exclamation-triangle"></i><span>Цвета</span></a></li>
+								<li class="nav-item"><a class="nav-link" href="{% url 'info:sizes-list' %}">
+									<i class="bi bi-exclamation-triangle"></i><span>Шв. Операции</span></a></li>
+								<li class="nav-item"><a class="nav-link" href="{% url 'info:operations-list' %}">
+									<i class="bi bi-exclamation-triangle"></i><span>Размеры</span></a></li>
+							</ul>
+						</div>
+					</li>
+
+					<li class="nav-item">
+						<a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#sewingSubmenu">
+							<i class="bi bi-scissors"></i><span>Швейного пр-во</span><i
+								class="bi bi-chevron-down ms-auto"></i>
+						</a>
+						<div class="collapse" id="sewingSubmenu">
+							<ul class="nav nav-submenu">
+								<li class="nav-item"><a class="nav-link" href="{% url 'sewing:models-list' %}">
+									<i class="bi bi-table"></i><span>Модели</span></a></li>
+							</ul>
+						</div>
+					</li>
+				</ul>
+			</nav>
+		</div>
+	</aside>
+
+	<!-- Floating Hamburger -->
+	<button class="hamburger-menu" type="button" data-sidebar-toggle aria-label="Toggle sidebar">
+		<i class="bi bi-list fs-2"></i>
+	</button>
+
+	{% block content %}{% endblock content %}
+	{% block dashboard %}{% endblock dashboard %}
+</div>
+
+<!-- Toasts container -->
+{#<div class="position-fixed top-0 end-0 p-3" style="z-index:2000;">#}
+{#	<div id="toast-container" class="toast-container"></div>#}
+{#</div>#}
+
+
+<!-- jQuery должен идти до django_select2.js -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="{% static 'django_select2/django_select2.js' %}"></script>
+<script src="{% static 'js/select2-init.js' %}"></script>
+<script src="{% static 'js/messages.js' %}" defer></script>
+	<script src="{% static 'js/image-uploader.js' %}"></script>
+
+<!-- jQuery уже есть -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.full.min.js"></script>
+
+<script>
+    // ==== Sidebar collapse (save to localStorage) ====
+    document.addEventListener('DOMContentLoaded', () => {
+        const toggleButton = document.querySelector('[data-sidebar-toggle]');
+        const wrapper = document.getElementById('admin-wrapper');
+        if (!toggleButton || !wrapper) return;
+
+        const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+        if (isCollapsed) {
+            wrapper.classList.add('sidebar-collapsed');
+            toggleButton.classList.add('is-active');
+        }
+        toggleButton.addEventListener('click', () => {
+            const c = wrapper.classList.toggle('sidebar-collapsed');
+            toggleButton.classList.toggle('is-active', c);
+            localStorage.setItem('sidebar-collapsed', String(c));
+        });
+    });
+
+    // ==== Fullscreen toggle ====
+    (function () {
+        const btn = document.querySelector('[data-fullscreen-toggle]');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen?.();
+            } else {
+                document.exitFullscreen?.();
+            }
+        });
+    })();
+
+    // ==== Scroll restore on POST/redirect ====
+    (function () {
+        const KEY = 'scroll:restore:' + location.pathname;
+        const y = sessionStorage.getItem(KEY);
+        if (y !== null) {
+            requestAnimationFrame(() => window.scrollTo(0, +y));
+            sessionStorage.removeItem(KEY);
+        }
+        addEventListener('submit', (e) => {
+            const f = e.target;
+            if (f && f.tagName === 'FORM') sessionStorage.setItem(KEY, String(window.scrollY || 0));
+        }, true);
+        addEventListener('click', (e) => {
+            const a = e.target.closest('button[type="submit"],[data-save]');
+            if (a) sessionStorage.setItem(KEY, String(window.scrollY || 0));
+        }, true);
+    })();
+    
+
+</script>
+{% block extra_js %}
+
+{% endblock extra_js %}
+</body>
+</html>

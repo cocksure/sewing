@@ -1,0 +1,27 @@
+{# templates/core/_row_actions.html #}
+{% load model_meta %}
+
+<div class="btn-group btn-group-sm">
+
+  {% url_for record "view" as view_url %}
+  <a href="{{ view_url }}"
+     class="btn btn-outline-primary {% if view_url == '#' %}disabled{% endif %}"
+     title="Просмотр">
+    <i class="bi bi-eye"></i>
+  </a>
+
+  {% url_for record "edit" as edit_url %}
+  <a href="{{ edit_url }}"
+     class="btn btn-outline-secondary {% if edit_url == '#' %}disabled{% endif %}"
+     title="Редактировать">
+    <i class="bi bi-pencil"></i>
+  </a>
+
+  {% url_for record "delete" as delete_url %}
+  <a href="{{ delete_url }}"
+     class="btn btn-outline-danger {% if delete_url == '#' %}disabled{% endif %}"
+     title="Удалить">
+    <i class="bi bi-trash"></i>
+  </a>
+
+</div>

@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% load static form_extras %}
+{% load render_table from django_tables2 %}
+
+
+
+{% block extra_css %}
+	<link rel="stylesheet" href="{% static 'css/style.css' %}">
+	<style>
+        /* Липкая шапка таблицы + плавные бордеры */
+        .list-card .table-responsive {
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, .05);
+        }
+
+        .list-card table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #fff;
+        }
+
+        /* Улучшаем кликабельные строки (если используешь ссылки в строках) */
+        .table-hover tbody tr {
+            transition: background-color .15s ease;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(99, 102, 241, .06);
+        }
+
+        /* Компактный фильтр-бар */
+        .filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+            padding: .25rem .5rem;
+            background: #f3f4f6;
+            border-radius: 999px;
+            font-size: .8rem;
+        }
+
+        .filter-chip .x {
+            opacity: .6;
+            text-decoration: none
+        }
+
+        .filter-chip .x:hover {
+            opacity: 1
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            flex-wrap: wrap;
+        }
+
+        .toolbar .title-wrap {
+            display: flex;
+            align-items: baseline;
+            gap: .5rem;
+        }
+
+        .toolbar .count-badge {
+            font-size: .8rem;
+            background: #eef2ff;
+            color: #4f46e5;
+            border-radius: 999px;
+            padding: .15rem .5rem;
+            font-weight: 600;
+        }
+
+        .search-icon {
+            position: absolute;
+            left: .6rem;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: .6;
+            pointer-events: none;
+        }
+
+        .table thead th a {
+            text-decoration: none; /* убираем underline */
+            color: inherit; /* цвет как у текста */
+        }
+
+        .table thead th a:hover {
+            opacity: .8; /* лёгкий ховер */
+            text-decoration: none;
+        }
+
+        .search-wrap {
+            position: relative;
+        }
+
+        .search-wrap input {
+            padding-left: 2rem;
+            min-width: 240px;
+        }
+
+        @media (max-width: 576px) {
+            .search-wrap input {
+                min-width: 0;
+                width: 100%;
+            }
+        }
+	</style>
+{% endblock extra_css %}
+
+{% block content %}
+	<div class="admin-content">
+		<div class="container-fluid">
+
+			<!-- Toolbar -->
+			<div class="row ">
+				<div class="col">
+					<div class="toolbar">
+						<div class="title-wrap">
+							<h1 class="h3 mb-0">{{ verbose_name_plural }}</h1>
+							{% if table.page and table.paginator %}
+								<span class="count-badge">
+                {{ table.page.start_index }}–{{ table.page.end_index }} из {{ table.paginator.count }}
+              </span>
+							{% endif %}
+						</div>
+
+						<div class="ms-auto d-flex gap-2">
+							{% if create_url %}
+								<a href="{{ create_url }}" class="btn btn-primary">
+									<i class="bi bi-plus-circle me-2"></i>{{ create_label|default:"Добавить" }}
+								</a>
+							{% elif open_modal_inplace %}
+								<button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+									<i class="bi bi-plus-circle me-2"></i>Добавить
+								</button>
+							{% endif %}
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Filters -->
+			{% if filter.form %}
+				<form method="get" class="card mb-3">
+					<div class="card-body py-3">
+						<div class="row g-2 align-items-end flex-wrap">
+
+							{# Поиск #}
+							{% if filter.form.search %}
+								<div class="col-auto">
+									<label class="form-label mb-1 small">{{ filter.form.search.label }}</label>
+									<div class="search-wrap">
+										<i class="bi bi-search search-icon"></i>
+										{{ filter.form.search }}
+									</div>
+								</div>
+							{% endif %}
+
+							{# Остальные поля фильтра #}
+							{% for f in filter.form.visible_fields %}
+								{% if f.name != "search" %}
+									<div class="col-auto">
+										<label class="form-label mb-1 small">{{ f.label }}</label>
+										{{ f }}
+									</div>
+								{% endif %}
+							{% endfor %}
+
+							<div class="col-auto ms-auto d-flex align-items-end gap-2">
+								<div>
+									<label class="form-label mb-1 small">Строк на странице</label>
+									<select name="per_page" class="form-select form-select-sm"
+									        onchange="this.form.submit()">
+										{% for n in page_sizes %}
+											<option value="{{ n }}" {% if per_page == n %}selected{% endif %}>
+												{{ page_size_labels.n|default:n|stringformat:"s" }}
+											</option>
+										{% endfor %}
+									</select>
+								</div>
+								<button class="btn btn-primary btn-sm" type="submit">
+									<i class="bi bi-funnel me-1"></i>Применить
+								</button>
+								<a class="btn btn-outline-secondary btn-sm" href="?">Сбросить</a>
+							</div>
+						</div>
+
+						{# Активные фильтры как «чипы» (необязательно; убрать, если не нужно) #}
+						{% if request.GET %}
+							{% with request.GET.items as params %}
+								{% if params %}
+									<div class="mt-2 d-flex flex-wrap gap-2">
+										{% for key, val in params %}
+											{% if val and key != 'page' %}
+												<span class="filter-chip">
+                        <span class="text-muted">{{ key }}:</span> <strong>{{ val }}</strong>
+                        <a class="x" href="?
+		                        
+		                        {% for k,v in request.GET.items %}{% if k != key %}{{ k }}={{ v|urlencode }}&{% endif %}{% endfor %}">
+                          <i class="bi bi-x"></i>
+                        </a>
+                      </span>
+											{% endif %}
+										{% endfor %}
+									</div>
+								{% endif %}
+							{% endwith %}
+						{% endif %}
+					</div>
+				</form>
+			{% endif %}
+
+			<!-- Table -->
+			<div class="card list-card">
+				{% if table.page.object_list %}
+					<div class="table-responsive p-2">
+						{% render_table table %}
+					</div>
+				{% else %}
+					<div class="card-body text-center py-5">
+						<div class="mb-2">
+							<i class="bi bi-inboxes text-muted" style="font-size:2.25rem;"></i>
+						</div>
+						<div class="h5 mb-1">Пока пусто</div>
+						<div class="text-muted mb-3">Попробуйте изменить фильтры или создайте первую запись.</div>
+						{% if create_url %}
+							<a href="{{ create_url }}" class="btn btn-primary btn-sm">
+								<i class="bi bi-plus-circle me-2"></i>{{ create_label|default:"Добавить" }}
+							</a>
+						{% endif %}
+					</div>
+				{% endif %}
+			</div>
+
+		</div>
+	</div>
+{% endblock %}

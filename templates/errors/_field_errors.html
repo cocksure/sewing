@@ -1,0 +1,8 @@
+{# templates/includes/_field_errors.html #}
+{% if field.errors %}
+  <div class="invalid-feedback d-block">
+    {% for err in field.errors %}
+      <div>{{ err }}</div>
+    {% endfor %}
+  </div>
+{% endif %}

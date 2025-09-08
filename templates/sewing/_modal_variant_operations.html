@@ -1,0 +1,76 @@
+<div class="modal-header py-2">
+  <h5 class="modal-title">Операции: {{ variant.name }}</h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<form method="post" action="{% url 'sewing:variant-operations' variant.id %}">
+  {% csrf_token %}
+  {{ fs.management_form }}
+
+  <div class="modal-body small">
+    {% for form in fs.forms %}
+      <div class="border rounded p-2 mb-2">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label mb-1">{{ form.operation.label }}</label>
+            {{ form.operation }} {# простой select к info.Operation #}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">{{ form.seconds.label }}</label>
+            {{ form.seconds }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label mb-1">{{ form.notes.label }}</label>
+            {{ form.notes }}
+          </div>
+          {% if form.can_delete %}
+            <div class="col-md-2 d-flex align-items-end">
+              <div class="form-check">
+                {{ form.DELETE }} <label class="form-check-label">Удалить</label>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="text-muted">Пока нет операций — добавьте строку.</div>
+    {% endfor %}
+
+    <button type="button" class="btn btn-outline-success btn-sm" onclick="addInlineRow('ops', this)">
+      Добавить строку
+    </button>
+  </div>
+
+  <div class="modal-footer py-2">
+    <button class="btn btn-secondary btn-sm" type="button" data-bs-dismiss="modal">Отмена</button>
+    <button class="btn btn-primary btn-sm" type="submit">Сохранить</button>
+  </div>
+</form>
+
+<script>
+  function addInlineRow(prefix, btn){
+    const modalContent = btn.closest('.modal-content');
+    const totalEl = modalContent.querySelector('#id_' + prefix + '-TOTAL_FORMS');
+    if (!totalEl) return;
+
+    const total = parseInt(totalEl.value, 10);
+    const blocks = modalContent.querySelectorAll('.border.rounded.p-2.mb-2');
+    if (!blocks.length) return;
+    const last = blocks[blocks.length - 1];
+    const clone = last.cloneNode(true);
+
+    clone.querySelectorAll('input, select, textarea, label').forEach(el => {
+      if (el.name) el.name = el.name.replace(new RegExp(prefix + '-\\d+-','g'), prefix + '-' + total + '-');
+      if (el.id)   el.id   = el.id.replace(new RegExp(prefix + '-\\d+-','g'), prefix + '-' + total + '-');
+
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
+        else el.value = '';
+      }
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+    });
+
+    last.after(clone);
+    totalEl.value = total + 1;
+  }
+</script>

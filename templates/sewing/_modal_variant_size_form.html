@@ -1,0 +1,43 @@
+{# sewing/templates/sewing/_modal_variant_size_form.html #}
+<div class="modal-header py-2">
+  <h5 class="modal-title">
+    {% if form.instance.pk %}Редактировать размер{% else %}Добавить размер{% endif %}
+  </h5>
+  <button type="button" class="btn btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<div class="d-none">{{ form.media }}</div>  <!-- важно! -->
+
+
+<form method="post" class="js-crud-form" action="{{ request.path }}">
+  {% csrf_token %}
+  <div class="modal-body small">
+    <div class="row g-2">
+      {% for f in form.visible_fields %}
+        <div class="col-md-6">
+          <label class="form-label mb-1">{{ f.label }}</label>
+          {{ f }}
+          {% if f.errors %}<div class="text-danger small">{{ f.errors|join:", " }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+	<div class="modal-footer py-2">
+		<div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+			<!-- ЛЕВО: полезные ссылки -->
+			<div class="small text-muted">
+				Полезные ссылки:
+				<a href="{% url 'info:sizes-list' %}" target="_blank" class="ms-2">
+					Размеры
+				</a>
+			</div>
+
+			<!-- ПРАВО: кнопки -->
+			<div class="d-flex gap-2">
+				<button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+				<button type="submit" class="btn btn-primary btn-sm js-submit">Сохранить</button>
+			</div>
+		</div>
+	</div>
+
+</form>

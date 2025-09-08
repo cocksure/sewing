@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {{ form.media.css }} {# <- CSS select2 сюда #}
+{% endblock extra_css %}
+
+{% block content %}
+<div class="admin-content">
+  <div class="container-fluid">
+    <div class="row mb-4 mt-3">
+      <div class="col">
+        <div class="d-flex justify-content-between align-items-center">
+          <h1 class="h3 mb-2">Создать Материал</h1>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-body">
+        {# УДАЛЕНО: <div class="d-none">{{ form.media }}</div> #}
+
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          {# УДАЛЕНО: повтор {{ form.media }} #}
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+              {% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">{{ form.code.label }} *</label>
+              {{ form.code }}
+              {% for e in form.code.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-8">
+              <label class="form-label">{{ form.title.label }} *</label>
+              {{ form.title }}
+              {% for e in form.title.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{{ form.type.label }}</label>
+              {{ form.type }}
+              {% for e in form.type.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{{ form.barcode.label }}</label>
+              {{ form.barcode }}
+              {% for e in form.barcode.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{{ form.accounting_code.label }}</label>
+              {{ form.accounting_code }}
+              {% for e in form.accounting_code.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">{{ form.planned_cost.label }}</label>
+              {{ form.planned_cost }}
+              {% for e in form.planned_cost.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+              <div class="form-text">Можно вводить «12,34» — преобразуем.</div>
+            </div>
+
+            <div class="col-md-3 d-flex align-items-center">
+              <div class="form-check mt-4">
+                {{ form.producible }}
+                <label class="form-check-label ms-1">{{ form.producible.label }}</label>
+              </div>
+              {% for e in form.producible.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{{ form.group.label }}</label>
+              {{ form.group }} {# <- тут должен быть ModelSelect2Widget #}
+              {% for e in form.group.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{{ form.special_group.label }}</label>
+              {{ form.special_group }} {# <- тоже Select2Widget, если сделал #}
+              {% for e in form.special_group.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{{ form.m_unit.label }}</label>
+              {{ form.m_unit }} {# <- Select2Widget #}
+              {% for e in form.m_unit.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{{ form.color.label }}</label>
+              {{ form.color }} {# <- Select2Widget #}
+              {% for e in form.color.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <a href="javascript:history.back()" class="btn btn-outline-secondary">Отмена</a>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+  {{ form.media.js }}            {# JS Select2 #}
+  <script>
+    // Явно пнём автоподключение django-select2
+    document.addEventListener('DOMContentLoaded', function () {
+      document.dispatchEvent(new Event('django.select2.init'));
+    });
+  </script>
+
+  <script>
+    (function () {
+      const form = document.querySelector('form');
+      if (!form) return;
+
+      form.addEventListener('submit', () => {
+        const price = form.querySelector('[name="planned_cost"]');
+        if (price && price.value) {
+          price.value = price.value.replace(',', '.').replace(/\s+/g, '');
+        }
+      });
+
+      const invalid = document.querySelector('.is-invalid, .invalid-feedback');
+      if (invalid) invalid.scrollIntoView({behavior: 'smooth', block: 'center'});
+    })();
+  </script>
+{% endblock %}

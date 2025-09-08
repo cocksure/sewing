@@ -1,0 +1,67 @@
+{# templates/common/base_list_create.html #}
+{% extends "common/base_list.html" %}
+{% load static %}
+{% load render_table from django_tables2 %}
+
+
+{% block content %}
+	{{ block.super }}
+
+	{# Кнопка "Добавить" — если нет внешнего урла, открываем модалку #}
+{#	{% if open_modal_inplace %}#}
+{#		<div class="container-fluid mb-2">#}
+{#			<button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">#}
+{#				<i class="bi bi-plus-circle me-1"></i> Добавить#}
+{#			</button>#}
+{#		</div>#}
+{#	{% endif %}#}
+
+	{# Модальное окно создания #}
+	<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg">
+			<div class="modal-content">
+				<form method="post">
+					{% csrf_token %}
+					<div class="modal-header">
+						<h5 class="modal-title">Добавить {{ verbose_name|default:verbose_name_plural }}</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+					</div>
+					<div class="modal-body">
+						{# Рендерим поля кратко и компактно #}
+						<div class="row g-2">
+							{% for field in form.visible_fields %}
+								<div class="col-md-6">
+									<label class="form-label mb-1 small">{{ field.label }}</label>
+									{{ field }}
+									{% if field.help_text %}
+										<div class="form-text">{{ field.help_text }}</div>
+									{% endif %}
+									{% if field.errors %}
+										<div class="text-danger small">{{ field.errors|join:", " }}</div>
+									{% endif %}
+								</div>
+							{% endfor %}
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button class="btn btn-secondary btn-sm" data-bs-dismiss="modal" type="button">Отмена</button>
+						<button class="btn btn-primary btn-sm" type="submit">Сохранить</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	{# Если были ошибки валидации — открываем модалку автоматом #}
+	{% if open_create_modal or form.errors %}
+		<script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var el = document.getElementById('createModal');
+                if (window.bootstrap && el) {
+                    var m = new bootstrap.Modal(el);
+                    m.show();
+                }
+            });
+		</script>
+	{% endif %}
+{% endblock %}

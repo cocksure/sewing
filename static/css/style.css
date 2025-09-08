@@ -1,0 +1,125 @@
+/* Основной контейнер */
+
+body {
+    background-color: #f5f6f8; /* светло-серый фон */
+}
+
+
+.admin-content {
+  margin-top: 45px;
+  margin-left: 290px;
+  padding: 40px;
+  transition: margin-left 0.3s ease;
+}
+
+.admin-content .container-fluid {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, .05);
+  padding: 20px;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
+
+
+/* Вертикальная линия разделителя */
+.admin-content::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 280px;
+  width: 1px;
+  height: 100%;
+  background: rgba(0, 0, 0, .1);
+}
+
+/* collapsed state */
+.sidebar-collapsed .admin-content {
+  margin-left: 70px;
+}
+.sidebar-collapsed .admin-content::before {
+  left: 90px;
+}
+
+/* Модалки на 90% */
+.modal-90w .modal-dialog {
+  max-width: 90vw;
+}
+
+/* Универсальный заголовок для collapsible секций */
+.dd-hdr {
+  --dd-bg: var(--bs-light);
+  --dd-fg: var(--bs-dark);
+  --dd-border: var(--bs-border-color);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: .5rem .75rem;
+  margin-bottom: .25rem;
+
+  background: var(--dd-bg);
+  color: var(--dd-fg);
+  border: 1px solid var(--dd-border);
+  border-radius: .5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background .2s ease, border-color .2s ease;
+}
+
+.dd-hdr .right {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.dd-hdr .badge {
+  font-weight: 600;
+  background: rgba(255, 255, 255, .3);
+  color: #fff;
+}
+
+.dd-hdr .chev {
+  transition: transform .2s ease;
+}
+.dd-hdr[aria-expanded="true"] .chev {
+  transform: rotate(180deg);
+}
+
+/* Цветовые темы секций */
+.hdr-marketing {
+  --dd-bg: linear-gradient(90deg, #f8d7da, #fef2f3);
+  --dd-border: #f5c2c7;
+}
+.hdr-sample {
+  --dd-bg: linear-gradient(90deg, #cff4fc, #e7fafd);
+  --dd-border: #9eeaf9;
+}
+.hdr-planned {
+  --dd-bg: linear-gradient(90deg, #eaf4e8, #f6fbf5);
+  --dd-border: #cbe7d3;
+}
+
+/* Dropdown-style header theme for "Доп. информация" */
+.hdr-advanced {
+  --dd-bg: linear-gradient(135deg, #64748b, #94a3b8); /* slate → light slate */
+  --dd-fg: #fff;
+  --dd-border: transparent;
+  color: #fff;
+}
+
+/* Таблица в секциях компактнее */
+.dd-body .table {
+  margin-bottom: 0;
+  font-size: .9rem;
+}
+
+
+
+/* Адаптивность */
+@media (max-width: 992px) {
+  .admin-content {
+    margin-left: 0 !important;
+    padding-top: 80px;
+  }
+}

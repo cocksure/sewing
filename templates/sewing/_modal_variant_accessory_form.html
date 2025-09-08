@@ -1,0 +1,27 @@
+<div class="modal-header py-2">
+  <h5 class="modal-title">
+    {% if form.instance.pk %}Редактировать аксессуар{% else %}Добавить аксессуар{% endif %}
+  </h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="d-none">{{ form.media }}</div>  <!-- важно! -->
+
+<form method="post" class="js-crud-form" action="{{ request.path }}">
+  {% csrf_token %}
+  <div class="modal-body small">
+    <div class="row g-2">
+      {% for f in form.visible_fields %}
+        <div class="col-md-6">
+          <label class="form-label mb-1">{{ f.label }}</label>
+          {{ f }}
+          {% if f.errors %}<div class="text-danger small">{{ f.errors|join:", " }}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="modal-footer py-2">
+    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+    <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+  </div>
+</form>
