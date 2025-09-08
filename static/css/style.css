@@ -6,9 +6,9 @@ body {
 
 
 .admin-content {
-  margin-top: 45px;
+  margin-top: 85px;
   margin-left: 290px;
-  padding: 40px;
+  padding-left: 20px;
   transition: margin-left 0.3s ease;
 }
 
@@ -23,7 +23,7 @@ body {
 
 /* Вертикальная линия разделителя */
 .admin-content::before {
-  content: "";
+  /*content: "";*/
   position: fixed;
   top: 0;
   left: 280px;
@@ -36,9 +36,9 @@ body {
 .sidebar-collapsed .admin-content {
   margin-left: 70px;
 }
-.sidebar-collapsed .admin-content::before {
-  left: 90px;
-}
+/*.sidebar-collapsed .admin-content::before {*/
+/*  left: 90px;*/
+/*}*/
 
 /* Модалки на 90% */
 .modal-90w .modal-dialog {
