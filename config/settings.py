@@ -6,7 +6,7 @@ SECRET_KEY = 'django-insecure-ce%kkar21*7#8arzm3o07fmv4l8y_*#x&49w2kc6ecx5rm+68v
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*', 'sewing.pythonanywhere.com']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
