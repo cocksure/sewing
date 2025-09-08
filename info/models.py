@@ -1,11 +1,16 @@
+import os
+from io import BytesIO
 from datetime import datetime
 
 from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.core.files.base import ContentFile
+from django.utils.text import slugify
 
 from core.mixins import AuditUserSaveMixin
 from core.models import BaseModel
+from PIL import Image
 
 PACKING_CHOICES = (
     (1, _('Рулон')),
@@ -40,17 +45,61 @@ class SaleTypes:
     export = 2
 
 
+def process_image(image, upload_path="uploads/", max_size=(1920, 1080), quality=85):
+    try:
+        img = Image.open(image)
+
+        # Проверка формата
+        if img.format and img.format.lower() not in ['jpg', 'jpeg', 'png', 'webp']:
+            raise ValueError(f"Неподдерживаемый формат: {img.format}")
+
+        # Сжатие
+        if img.width > max_size[0] or img.height > max_size[1]:
+            img.thumbnail(max_size, Image.LANCZOS)
+
+        # Сохраняем в webp
+        output = BytesIO()
+        img.save(output, format="WEBP", quality=quality, optimize=True)
+        output.seek(0)
+
+        # Имя файла
+        filename_wo_ext = os.path.splitext(os.path.basename(image.name))[0]
+        safe_name = slugify(filename_wo_ext) + ".webp"
+        full_path = os.path.join(upload_path, safe_name)
+
+        return full_path, ContentFile(output.read())
+
+    except Exception as e:
+        raise ValueError(f"Ошибка при обработке изображения: {e}")
+
+
 class UploadedImage(AuditUserSaveMixin, BaseModel):
-    image = models.ImageField(_("Фото"), upload_to='%Y/%m/%d')
+    image = models.ImageField(_("Фото"), upload_to="%Y/%m/%d")
 
     class Meta:
         managed = True
-        db_table = 'upload_images'
-        verbose_name = _('Загруженная картинка')
-        verbose_name_plural = _('Загруженные картинки')
+        db_table = "upload_images"
+        verbose_name = _("Загруженная картинка")
+        verbose_name_plural = _("Загруженные картинки")
 
     def __str__(self):
-        return self.image.name
+        return os.path.basename(self.image.name) if self.image else "—"
+
+    def save(self, *args, **kwargs):
+        if self.image:
+            new_name, new_file = process_image(self.image, "uploads/")
+            # Удаление старого файла (если обновляем картинку)
+            if self.pk:
+                try:
+                    old = UploadedImage.objects.get(pk=self.pk)
+                    if old.image and old.image != self.image:
+                        old.image.delete(save=False)
+                except UploadedImage.DoesNotExist:
+                    pass
+
+            self.image.save(new_name, new_file, save=False)
+
+        super().save(*args, **kwargs)
 
 
 class UploadedFile(AuditUserSaveMixin, BaseModel):
