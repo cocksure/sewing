@@ -21,10 +21,10 @@
 	<link rel="stylesheet" href="{% static 'css/main.css' %}">
 	<link rel="stylesheet" href="{% static 'css/select2-init.css' %}">
 
-	<script type="module" src="{% static 'js/main.js' %}" defer></script>
+{#	<script type="module" src="{% static 'js/main.js' %}" defer></script>#}
 	{% block extra_css %}{% endblock %}
 </head>
-<body data-page="{% block page_id %}dashboard{% endblock %}" class="admin-layout">
+<body >
 
 <!-- Global Messages (fixed) -->
 <div id="global-messages"
@@ -74,7 +74,6 @@
 							<span class="d-none d-md-inline">{{ request.user.get_short_name|default:request.user.username }}</span>
 						</button>
 						<ul class="dropdown-menu dropdown-menu-end">
-							<li><a class="dropdown-item" href="{% url 'settings' %}"><i class="bi bi-gear me-2"></i>Настройки</a>
 							</li>
 							<li>
 								<hr class="dropdown-divider">
@@ -164,6 +163,10 @@
 {#	<div id="toast-container" class="toast-container"></div>#}
 {#</div>#}
 
+<!-- Bootstrap Bundle JS (с Popper внутри) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
 
 <!-- jQuery должен идти до django_select2.js -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -199,6 +202,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
+
+<!-- Alpine.js для x-data/x-text -->
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js" defer></script>
+<!-- Chart.js для графиков -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 
 {% block extra_js %}
 

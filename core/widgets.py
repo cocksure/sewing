@@ -36,7 +36,11 @@ class OperationSelect2(BaseAjaxSelect2):
     search_fields = ("name__icontains",)
 
     def get_queryset(self):
-        return Size.objects.filter(is_active=True)
+        qs = Operation.objects.all()
+        # если используете флаг активности — фильтруем
+        if hasattr(Operation, "is_active"):
+            qs = qs.filter(is_active=True)
+        return qs.order_by("name")
 
 
 class SizeSelect2(BaseAjaxSelect2):

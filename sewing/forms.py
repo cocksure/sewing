@@ -194,17 +194,17 @@ VariantSizeFormSet = inlineformset_factory(
 )
 
 
-# ===== Операции варианта (без select2) =====
-# sewing/forms.py
-
 class VariantOperationForm(SmallWidgetMixin, forms.ModelForm):
     class Meta:
         model = VariantOperation
         fields = ("operation", "seconds")  # ← только эти два
         widgets = {
             "operation": OperationSelect2(attrs={
-                "data-dropdown-parent": "#operationFormModal",  # id модалки с формой операций
+                "data-dropdown-parent": "#operationFormModal",
+                "data-minimum-input-length": "2",
                 "data-placeholder": "Найдите операцию…",
+                "data-allow-clear": "true",
+                "style": "width:100%",
             }),
             "seconds": forms.NumberInput(attrs={
                 "class": "form-control form-control-sm",
@@ -225,9 +225,9 @@ class VariantOperationForm(SmallWidgetMixin, forms.ModelForm):
         self.fields["operation"].queryset = qs
 
         # опционально: подпись как "Название — N сек."
-        self.fields["operation"].label_from_instance = (
-            lambda
-                obj: f"{getattr(obj, 'name', 'Без имени')} — {getattr(obj, 'seconds', getattr(obj, 'default_seconds', 0))} сек."
+        self.fields["operation"].label_from_instance = lambda obj: (
+            f"{getattr(obj, 'name', 'Без имени')} — "
+            f"{getattr(obj, 'default_duration', 0)} сек."
         )
 
 
