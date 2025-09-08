@@ -2,7 +2,7 @@
 from django.contrib import messages
 from django.forms import modelform_factory
 from django.http import Http404
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.http import urlencode
 from django.views.generic.edit import FormMixin
@@ -11,10 +11,6 @@ from django_tables2.views import SingleTableMixin
 
 from .filters import make_filterset_class
 from .tables import make_table_class
-
-
-def settings(request):
-    return render(request, "profile/settings.html")
 
 
 class BaseModelListView(SingleTableMixin, FilterView):
