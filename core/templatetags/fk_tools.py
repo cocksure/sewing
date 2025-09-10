@@ -14,6 +14,8 @@ FK_LIST_ROUTES = {
     # добавляй по мере необходимости
 }
 
+#
+
 @register.simple_tag
 def fk_list_url(bound_field):
     """

@@ -1,6 +1,7 @@
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import models
+from django.db.models import Sum, F
 from django.db.models import UniqueConstraint
 from django.utils.translation import gettext_lazy as _
 
@@ -35,6 +36,18 @@ PRINT_RATIOS = (
     (3, _('61-80%')),
     (4, _('81-100%'))
 )
+
+
+class OrderStatus(models.IntegerChoices):
+    NEW = 1, _("Новый")
+    IN_PROGRESS = 3, _("В работе")
+    DONE = 4, _("Готов")
+    CANCELED = 5, _("Отменён")
+    IN_DEVELOPMENT = 6, _("В разработке")
+    IN_AGGREEMENT = 7, _("На согласовании")
+    CONFIRMED = 8, _("Подтверждён")
+    ABORTED = 9, _("Прерван")
+    ACCEPTED = 10, _("Принят")
 
 
 class SewingFabricType(models.Model):
@@ -138,6 +151,8 @@ class CategoryModel(models.Model):
     def __str__(self):
         return self.name
 
+
+# --------------------------------------------- SewingModels Start ----------------------------------------------------
 
 DEC2 = Decimal("0.01")
 
@@ -374,3 +389,163 @@ class VariantOperation(BaseModel):
 
     def __str__(self):
         return f"{self.variant} — {self.operation}"
+
+
+# --------------------------------------------- SewingOrders Start ----------------------------------------------------
+
+
+class SewingOrder(BaseModel):
+    class OrderType(models.TextChoices):
+        SAMPLE = "sample", _("Образец")
+        PRODUCTION = "production", _("Производство")
+        MARKETING = "marketing", _("Маркетинг")
+        OTHER = "other", _("Другое")
+
+    # номер можно будет добавить позже, если нужен
+    customer = models.ForeignKey(
+        'info.Firm', verbose_name=_("Заказчик"),
+        on_delete=models.PROTECT, related_name="sewing_orders_customer",
+    )
+    buyer = models.ForeignKey(
+        'info.Firm', verbose_name=_("Покупатель"),
+        on_delete=models.PROTECT, related_name="sewing_orders_buyer",
+        null=True, blank=True,
+    )
+    shipment_date = models.DateField(_("Дата отгрузки"), null=True, blank=True)
+    order_type = models.CharField(
+        _("Тип заказа"), max_length=20, choices=OrderType.choices, default=OrderType.PRODUCTION
+    )
+    specification = models.ForeignKey(
+        'info.Specification', verbose_name=_("Спецификация"),
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="sewing_orders",
+    )
+
+    status = models.IntegerField(
+        _("Статус"),
+        choices=OrderStatus.choices,
+        default=OrderStatus.NEW,
+        db_index=True,
+    )
+
+    total_qty = models.PositiveIntegerField(_("Итого кол-во"), default=0)
+    total_amount = models.DecimalField(
+        _("Итого сумма"), max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+
+    class Meta:
+        verbose_name = _("Швейный заказ")
+        verbose_name_plural = _("Швейные заказы")
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=("status",)),
+            models.Index(fields=("shipment_date",)),
+            models.Index(fields=("order_type",)),
+            models.Index(fields=("customer",)),
+            models.Index(fields=("created_at",)),
+        ]
+
+    @property
+    def order_date(self):
+        # дата создания как дата заказа
+        return getattr(self, "created_at", None).date() if getattr(self, "created_at", None) else None
+
+    @property
+    def manager(self):
+        # кто создал заказ
+        return getattr(self, "created_by", None)
+
+    def __str__(self):
+        return f"Заказ #{self.pk or '—'} от {self.customer}"
+
+    # пересчёт итогов из позиций
+    def recompute_totals(self, save=True):
+        agg = self.items.aggregate(
+            qty=Sum("quantity"),
+            amt=Sum(F("quantity") * F("unit_price")),
+        )
+        self.total_qty = agg.get("qty") or 0
+        self.total_amount = agg.get("amt") or Decimal("0.00")
+        if save:
+            super().save(update_fields=("total_qty", "total_amount", "updated_at"))
+
+    # легкий guard: не даём пересохранять заказ с отрицательными итогами
+    def clean(self):
+        super().clean()
+        if self.total_qty < 0 or self.total_amount < 0:
+            from django.core.exceptions import ValidationError
+            raise ValidationError(_("Итоги заказа не могут быть отрицательными."))
+
+
+class SewingOrderItem(models.Model):
+    order = models.ForeignKey(SewingOrder, verbose_name=_("Заказ"),
+                              on_delete=models.CASCADE, related_name="items")
+    variant = models.ForeignKey(ModelVariant, verbose_name=_("Вариант модели"),
+                                on_delete=models.PROTECT, related_name="order_items")
+
+    quantity = models.PositiveIntegerField(_("Кол-во"), default=1)
+    unit_price = models.DecimalField(_("Цена за единицу"),
+                                     max_digits=12, decimal_places=2, default=Decimal("0.00"))
+
+    # статус позиции (часто удобно иметь свой, но можно наследовать от заказа)
+    status = models.IntegerField(
+        _("Статус позиции"),
+        choices=OrderStatus.choices,
+        default=OrderStatus.NEW,
+        db_index=True,
+    )
+
+    notes = models.CharField(_("Примечание"), max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = _("Позиция заказа")
+        verbose_name_plural = _("Позиции заказа")
+        ordering = ("pk",)
+        indexes = [
+            models.Index(fields=("order",)),
+            models.Index(fields=("variant",)),
+            models.Index(fields=("status",)),
+        ]
+        constraints = [
+            # на одном заказе можно позволить дубли с разными ценами, но чаще — хотим уникальность варианта
+            # если нужно запретить дубли — раскомментируй UniqueConstraint:
+            # models.UniqueConstraint(fields=("order", "variant"), name="uq_order_variant"),
+        ]
+
+    def __str__(self):
+        return f"{self.variant} × {self.quantity}"
+
+    @property
+    def amount(self) -> Decimal:
+        return (self.unit_price or Decimal("0.00")) * self.quantity
+
+    def clean(self):
+        super().clean()
+        if not self.variant_id:
+            from django.core.exceptions import ValidationError
+            raise ValidationError({"variant": _("Укажите вариант модели.")})
+
+    def save(self, *args, **kwargs):
+        # если цена не задана — берём текущую цену варианта (если есть)
+        if (self.unit_price is None or self.unit_price == 0) and getattr(self, "variant", None):
+            # у тебя у варианта есть поле unit_price (мы им пользовались в списках)
+            price = getattr(self.variant, "unit_price", None)
+            if price is not None:
+                self.unit_price = price
+        super().save(*args, **kwargs)
+        # после сохранения позиции — пересчитаем итоги заказа
+        self.order.recompute_totals(save=True)
+
+
+class SewingOrderSizeCount(models.Model):
+    """
+    Количества по размерам для конкретной строки заказа (варианта).
+    """
+    item = models.ForeignKey(SewingOrderItem, related_name="size_counts", on_delete=models.CASCADE)
+    size = models.ForeignKey('info.Size', on_delete=models.PROTECT)
+    quantity = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["item", "size"], name="uniq_item_size")
+        ]

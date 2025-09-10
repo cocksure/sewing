@@ -257,3 +257,23 @@ class VariantOperationAdmin(admin.ModelAdmin):
         "variant__product_model__vendor_code",
     )
     list_editable = ["operation", ]
+
+
+# -------------------------------------------------- Orders start------------------------------------------------------
+
+@admin.register(models.SewingOrder)
+class SewingOrderAdmin(admin.ModelAdmin):
+    list_display = ("id", "customer", "order_type", "status", "shipment_date",
+                    "total_qty", "total_amount", "created_at", "created_by")
+    list_filter = ("status", "order_type", "shipment_date", "created_at")
+    search_fields = ("customer__name", "buyer__name")
+
+
+class SewingOrderItemInline(admin.TabularInline):
+    model = models.SewingOrderItem
+    extra = 0
+    fields = ("variant", "quantity", "unit_price", "status", "notes")
+
+@admin.register(models.SewingOrderSizeCount)
+class SewingOrderSizeCountAdmin(admin.ModelAdmin):
+    list_display = ('item', 'size', 'quantity',)

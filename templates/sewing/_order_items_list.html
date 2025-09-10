@@ -1,0 +1,90 @@
+{# sewing/_order_items_list.html #}
+{% if items %}
+	<div class="table-scroll">
+		<table class="table table-hover align-middle mb-0 table-sticky">
+			<thead>
+			<tr>
+				<th style="width:60px;"></th>
+				<th>Модель</th>
+				<th>Вариант</th>
+				<th class="text-center" style="width:120px;">Статус</th>
+				<th class="text-end" style="width:100px;">Кол-во</th>
+				<th class="text-end" style="width:100px;">Цена</th>
+				<th class="text-end" style="width:120px;">Сумма</th>
+				<th class="text-center" style="width:200px;">Действия</th>
+			</tr>
+			</thead>
+			<tbody>
+			{% for it in items %}
+				<tr id="oi{{ it.id }}">
+					<td>
+						{% with img=it.variant.product_model.image %}
+							{% if img and img.image %}
+								<img src="{{ img.image.url }}" alt="" class="rounded"
+								     style="width:40px;height:40px;object-fit:cover;">
+							{% else %}
+								<span class="text-muted small">—</span>
+							{% endif %}
+						{% endwith %}
+					</td>
+					<td>
+						<div class="fw-semibold">{{ it.variant.product_model.vendor_code }}</div>
+						<div class="text-muted small">{{ it.variant.product_model.name|default:"" }}</div>
+					</td>
+					<td>
+						<div class="fw-semibold">{{ it.variant.name }}</div>
+						<div class="text-muted small">{{ it.variant.description|default:"" }}</div>
+					</td>
+					<td class="text-center">
+						{% include "sewing/_status_badge.html" with status=it.status %}
+					</td>
+					<td class="text-end">{{ it.qty }}</td>
+					<td class="text-end">{{ it.unit_price|floatformat:2 }}</td>
+					<td class="text-end">{{ it.line_total|floatformat:2 }}</td>
+					<td class="text-end">
+						<div class="btn-group btn-group-sm" role="group" aria-label="Действия">
+							{# Редактировать #}
+							<a class="btn btn-outline-primary"
+							   data-bs-toggle="modal" data-bs-target="#orderItemFormModal"
+							   href="{% url 'sewing:order-item-edit' it.id %}"
+							   title="Редактировать">
+								<i class="bi bi-pencil"></i>
+							</a>
+
+							{# Размеры #}
+							<a class="btn btn-outline-secondary"
+							   data-bs-toggle="modal" data-bs-target="#orderItemSizesModal"
+							   href="{% url 'sewing:order-item-sizes' it.id %}"
+							   title="Размеры">
+								<i class="bi bi-grid-3x3-gap"></i>
+							</a>
+
+							{# Удалить #}
+							<form method="post"
+							      action="{% url 'sewing:order-item-delete' it.id %}"
+							      class="d-inline js-orderitem-delete"
+							      onsubmit="return confirm('Удалить строку?');">
+								{% csrf_token %}
+								<button class="btn btn-outline-danger" type="submit" title="Удалить">
+									<i class="bi bi-trash"></i>
+								</button>
+							</form>
+						</div>
+					</td>
+				</tr>
+			{% endfor %}
+			</tbody>
+			<tfoot>
+				<tr>
+					<th colspan="4" class="text-end">Итого:</th>
+					<th class="text-end">{{ total_qty }}</th>
+					<th></th>
+					<th class="text-end">{{ total_sum|floatformat:2 }}</th>
+					<th></th>
+				</tr>
+			</tfoot>
+		</table>
+	</div>
+{% else %}
+	<div class="text-muted">Нет строк.</div>
+{% endif %}

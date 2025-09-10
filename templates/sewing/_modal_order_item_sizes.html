@@ -1,0 +1,51 @@
+{# sewing/templates/sewing/_modal_order_item_sizes.html #}
+
+{% load dict_tools %} 
+
+<div class="modal-header py-2">
+  <h5 class="modal-title">
+    Кол-во по размерам — {{ variant.product_model.vendor_code }} / {{ variant.name }}
+  </h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<form method="post" action="{% url 'sewing:order-item-sizes-save' item.id %}" class="js-order-sizes-form">
+  {% csrf_token %}
+  <div class="modal-body small">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Размер</th>
+            <th style="width:140px;" class="text-end">Кол-во</th>
+          </tr>
+        </thead>
+        <tbody>
+          {# var_sizes — это либо VariantSize с .size, либо Size напрямую #}
+          {% for vs in var_sizes %}
+            {% with s=vs.size|default:vs %}
+              <tr>
+                <td>{{ s.name }}</td>
+                <td class="text-end">
+                  <input type="number"
+                         name="qty_{{ s.id }}"
+                         value="{{ existing.s.id|default:existing|dict_get:s.id|default_if_none:0 }}"
+                         min="0"
+                         class="form-control form-control-sm text-end"
+                         style="width:120px; margin-left:auto;">
+                </td>
+              </tr>
+            {% endwith %}
+          {% empty %}
+            <tr><td colspan="2" class="text-muted">Для варианта размеры не заданы.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="form-text">Нули не сохраняются — строки c нулём будут удалены.</div>
+  </div>
+  <div class="modal-footer py-2">
+    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Отмена</button>
+    <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+  </div>
+</form>

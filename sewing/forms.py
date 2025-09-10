@@ -2,12 +2,12 @@
 from django import forms
 from django.forms import inlineformset_factory, BaseInlineFormSet
 
-from core.widgets import MaterialSelect2, ColorSelect2, OperationSelect2, SizeSelect2,  VariantSelect2
+from core.widgets import MaterialSelect2, ColorSelect2, OperationSelect2, SizeSelect2, VariantSelect2
 from info.models import Operation
 from .models import (
     SewingProductModel, ModelVariant,
     VariantMaterial, VariantAccessory,
-    VariantSize, VariantOperation
+    VariantSize, VariantOperation, SewingOrder, SewingOrderItem
 )
 
 
@@ -166,15 +166,14 @@ VariantAccessoryFormSet = inlineformset_factory(
 )
 
 
-# forms.py
 class VariantSizeForm(SmallWidgetMixin, forms.ModelForm):
     class Meta:
         model = VariantSize
         fields = ("size", "notes")
         widgets = {
             "size": SizeSelect2(attrs={
-                "data-dropdown-parent": "#sizeFormModal",  # важно для модалки
-                "data-minimum-input-length": "1",  # можно вводить L, S и т.п.
+                "data-dropdown-parent": "#sizeFormModal",
+                "data-minimum-input-length": "1",
                 "data-placeholder": "Найдите размер…",
                 "data-allow-clear": "true",
                 "style": "width:100%",
@@ -182,8 +181,24 @@ class VariantSizeForm(SmallWidgetMixin, forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self._variant = kwargs.pop("variant", None)  # ВАЖНО
         super().__init__(*args, **kwargs)
+        if not self._variant:
+            self._variant = getattr(self.instance, "variant", None)
         self._smallify()
+
+    def clean(self):
+        cleaned = super().clean()
+        size = cleaned.get("size")
+        variant = self._variant
+        if variant and size:
+            qs = VariantSize.objects.filter(variant=variant, size=size)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                # non_field_error — будет показан в шаблоне
+                raise forms.ValidationError("Такой размер уже добавлен для этого варианта.")
+        return cleaned
 
 
 VariantSizeFormSet = inlineformset_factory(
@@ -254,3 +269,35 @@ class FillFromVariantForm(forms.Form):
         label="Очистить текущие записи перед копированием",
         required=False
     )
+
+
+# ---------------------------------- Order start -----------------------------------------------
+
+class SewingOrderForm(forms.ModelForm):
+    class Meta:
+        model = SewingOrder
+        fields = ("customer", "buyer", "order_type", "specification",
+                  "shipment_date", "status",)
+        widgets = {
+            "customer": forms.Select(attrs={"class": "form-select form-select-sm"}),
+            "buyer": forms.Select(attrs={"class": "form-select form-select-sm"}),
+            "order_type": forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+            "specification": forms.Select(attrs={"class": "form-select form-select-sm"}),
+            "shipment_date": forms.DateInput(attrs={"type": "date", "class": "form-control form-control-sm"}),
+            "status": forms.Select(attrs={"class": "form-select form-select-sm"}),
+            "notes": forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        }
+
+
+class OrderItemForm(forms.ModelForm):
+    class Meta:
+        model = SewingOrderItem
+        fields = ("variant", "unit_price", "status", "notes")
+        widgets = {
+            "variant": VariantSelect2(attrs={
+                "data-dropdown-parent": "#orderItemFormModal",
+            }),
+            "unit_price": forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.01", "min": 0}),
+            "status": forms.Select(attrs={"class": "form-select form-select-sm"}),
+            "notes": forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        }

@@ -4,20 +4,25 @@ from base64 import b64encode
 
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Case, When, IntegerField
-from django.http import HttpResponse
+from django.db.models import Case, When, IntegerField, Sum, F, DecimalField
+from django.db.models.expressions import ExpressionWrapper
+# sewing/views.py
+from django.db.models.functions import Coalesce
+from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views import View
+from django.views.decorators.http import require_POST
+from django.views.generic import UpdateView
 
 from core.mixins import AjaxMessageMixin
 from core.views import BaseModelListView
-from info.models import UploadedImage
+from info.models import UploadedImage, Size
 from sewing import models
 from .forms import (
     SewingProductModelForm, ModelVariantForm,
     VariantSizeFormSet, VariantOperationFormSet, VariantAccessoryForm, VariantOperationForm, VariantSizeForm,
-    FillFromVariantForm
+    FillFromVariantForm, OrderItemForm, SewingOrderForm
 )
 from .forms import VariantMaterialForm
 from .models import ModelVariant, VariantMaterial
@@ -649,33 +654,30 @@ class VariantSizesListView(View):
         })
 
 
+# views.py
 class VariantSizeCreateView(AjaxMessageMixin, View):
-    """Форма создания (вторая модалка)"""
 
     def get(self, request, variant_id):
-        # 404, если варианта нет
-        get_object_or_404(ModelVariant, pk=variant_id)
-        form = VariantSizeForm()
+        variant = get_object_or_404(ModelVariant, pk=variant_id)
+        form = VariantSizeForm(variant=variant)
         return render(request, "sewing/_modal_variant_size_form.html", {"form": form})
 
     def post(self, request, variant_id):
         variant = get_object_or_404(ModelVariant, pk=variant_id)
-        form = VariantSizeForm(request.POST)
+        form = VariantSizeForm(request.POST, variant=variant)
         if form.is_valid():
             obj = form.save(commit=False)
             obj.variant = variant
             obj.save()
             form.save_m2m()
-
-            # AJAX → 204 + X-Message; не-AJAX → messages + redirect
             return self.ajax_or_redirect(
                 request,
                 text="Размер добавлен.",
                 typ="success",
-                redirect_to=redirect(reverse("sewing:variant-sizes", args=[variant_id]))
+                redirect_to=redirect(reverse("sewing:variant-sizes", args=[variant_id])),
             )
 
-        # Ошибки: вернуть HTML формы для AJAX, messages+redirect для обычного запроса
+        # Ошибки
         is_ajax = (request.headers.get("x-requested-with") == "XMLHttpRequest"
                    or request.headers.get("X-Requested-With") == "XMLHttpRequest")
         if is_ajax:
@@ -686,23 +688,21 @@ class VariantSizeCreateView(AjaxMessageMixin, View):
 
 
 class VariantSizeUpdateView(AjaxMessageMixin, View):
-    """Форма редактирования (вторая модалка)"""
-
     def get(self, request, pk):
         obj = get_object_or_404(models.VariantSize, pk=pk)
-        form = VariantSizeForm(instance=obj)
+        form = VariantSizeForm(instance=obj, variant=obj.variant)
         return render(request, "sewing/_modal_variant_size_form.html", {"form": form})
 
     def post(self, request, pk):
         obj = get_object_or_404(models.VariantSize, pk=pk)
-        form = VariantSizeForm(request.POST, instance=obj)
+        form = VariantSizeForm(request.POST, instance=obj, variant=obj.variant)
         if form.is_valid():
             form.save()
             return self.ajax_or_redirect(
                 request,
                 text="Размер обновлён.",
                 typ="success",
-                redirect_to=redirect(reverse("sewing:variant-sizes", args=[obj.variant_id]))
+                redirect_to=redirect(reverse("sewing:variant-sizes", args=[obj.variant_id])),
             )
 
         is_ajax = (request.headers.get("x-requested-with") == "XMLHttpRequest"
@@ -859,3 +859,231 @@ class VariantFillFromView(View):
 
         # ---- неизвестный kind ----
         return HttpResponse(status=400)
+
+
+# -------------------------------- Orders start ------------------------------------------
+
+class SewingOrderListView(BaseModelListView):
+    model = models.SewingOrder
+    template_name = "common/base_list.html"
+    paginate_by = 12
+
+    list_fields = (
+        "id", "customer", "buyer", "manager", "shipment_date", "status", "order_type",)
+    search_fields = ("id",)
+    fk_filters = ("customer", "buyer", "order_type", "shipment_date", "status")
+    order_by = ("-id",)
+    order_by_map = {}
+
+    create_url_name = "sewing:order-create"
+
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related("customer", "buyer")
+        )
+
+
+class SewingOrderCreateView(View):
+    template_name = "sewing/order_create.html"
+
+    def get(self, request):
+        return render(request, self.template_name, {
+            "form_order": SewingOrderForm(prefix="order"),
+        })
+
+    def post(self, request):
+        form_order = SewingOrderForm(request.POST, prefix="order")
+
+        if not form_order.is_valid():
+            messages.error(request, "Проверьте поля формы.")
+            return render(request, self.template_name, {
+                "form_order": form_order,
+            })
+
+        with transaction.atomic():
+            order = form_order.save(commit=False)
+            order.created_by = getattr(request, "user", None) or None
+            order.save()
+            form_order.save_m2m()
+
+        messages.success(request, "Заказ успешно создан.")
+        return redirect(reverse("sewing:orders-edit", args=[order.pk]))
+
+
+class SewingOrderEditView(UpdateView):
+    model = models.SewingOrder
+    form_class = SewingOrderForm
+    template_name = "sewing/order_edit.html"
+    context_object_name = "order"
+
+    def _items_qs(self, order):
+        # qty = сумма по связанным размерам; line_total = qty * unit_price
+        return (
+            order.items
+            .select_related("variant", "variant__product_model")
+            .annotate(
+                qty=Coalesce(Sum("size_counts__quantity"), 0, output_field=IntegerField()),
+            )
+            .annotate(
+                line_total=ExpressionWrapper(
+                    F("qty") * F("unit_price"),
+                    output_field=DecimalField(max_digits=12, decimal_places=2)
+                )
+            )
+            .order_by("variant__product_model__vendor_code", "variant__name", "id")
+        )
+
+    def get_success_url(self):
+        # остаёмся на этой же странице редактирования
+        return reverse("sewing:orders-edit", args=[self.object.pk])
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        o = self.object
+        items_qs = self._items_qs(o)
+
+        totals = items_qs.aggregate(
+            total_qty=Coalesce(Sum("qty"), 0, output_field=IntegerField()),
+            total_sum=Coalesce(Sum("line_total"), 0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+        )
+
+        ctx["order_items"] = items_qs
+        ctx["total_qty"] = totals["total_qty"]
+        ctx["total_sum"] = totals["total_sum"]
+        # URL для AJAX-перерисовки таблицы:
+        ctx["items_partial_url"] = reverse("sewing:order-items-list", args=[o.pk])
+        return ctx
+
+    def form_invalid(self, form):
+        return super().form_invalid(form)
+
+
+def order_items_partial(request, pk):
+    order = get_object_or_404(models.SewingOrder, pk=pk)
+    items = (
+        order.items
+        .select_related("variant", "variant__product_model")
+        .annotate(qty=Coalesce(Sum("size_counts__quantity"), 0, output_field=IntegerField()))
+        .annotate(line_total=ExpressionWrapper(F("qty") * F("unit_price"),
+                                               output_field=DecimalField(max_digits=12, decimal_places=2)))
+        .order_by("variant__product_model__vendor_code", "variant__name", "id")
+    )
+    totals = items.aggregate(
+        total_qty=Coalesce(Sum("qty"), 0, output_field=IntegerField()),
+        total_sum=Coalesce(Sum("line_total"), 0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+    )
+    return render(request, "sewing/_order_items_list.html", {
+        "order": order,
+        "items": items,
+        "total_qty": totals["total_qty"],
+        "total_sum": totals["total_sum"],
+    })
+
+
+def order_item_form(request, pk=None, item_id=None):
+    """Форма строки (create/update) в модалке."""
+    if item_id:
+        item = get_object_or_404(models.SewingOrderItem, pk=item_id)
+        order = item.order
+    else:
+        order = get_object_or_404(models.SewingOrder, pk=pk)
+        item = models.SewingOrderItem(order=order)
+
+    if request.method == "POST":
+        form = OrderItemForm(request.POST, instance=item)
+        if form.is_valid():
+            form.save()
+            return HttpResponse(status=204)  # успех — фронт сам перерисует список
+        return render(request, "sewing/_modal_order_item_form.html", {"form": form})
+
+    form = OrderItemForm(instance=item)
+    return render(request, "sewing/_modal_order_item_form.html", {"form": form})
+
+
+@require_POST
+def order_item_delete(request, item_id):
+    item = get_object_or_404(models.SewingOrderItem, pk=item_id)
+    # (опционально) права/владение:
+    # if not request.user.is_authenticated:
+    #     return HttpResponseForbidden()
+
+    order_id = item.order_id
+    item.delete()
+
+    # Для AJAX — возвращаем 204 (твой JS это ждёт)
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return HttpResponse(status=204)
+
+    # На случай обычного POST
+    return redirect("sewing:order-edit", pk=order_id)
+
+
+def _variant_sizes_qs(variant):
+    # Допусти, что у тебя есть модель VariantSize(variant, size, ...)
+    # Если нет — возьми просто Size.objects.filter(is_active=True)
+    try:
+        return (models.VariantSize.objects
+                .select_related("size")
+                .filter(variant=variant, size__is_active=True)
+                .order_by("size__name"))
+    except Exception:
+        return Size.objects.filter(is_active=True).order_by("name")
+
+
+def order_item_sizes_modal(request, item_id):
+    item = get_object_or_404(models.SewingOrderItem.objects.select_related(
+        "variant", "variant__product_model"
+    ), pk=item_id)
+
+    # список допустимых размеров для этого варианта
+    var_sizes = _variant_sizes_qs(item.variant)
+
+    # текущее состояние количеств (словарь size_id -> qty)
+    existing = {sc.size_id: sc.quantity for sc in item.size_counts.all()}
+
+    return render(request, "sewing/_modal_order_item_sizes.html", {
+        "item": item,
+        "variant": item.variant,
+        "var_sizes": var_sizes,
+        "existing": existing,
+    })
+
+
+@transaction.atomic
+def order_item_sizes_save(request, item_id):
+    if request.method != "POST":
+        return HttpResponseBadRequest("Only POST")
+
+    item = get_object_or_404(models.SewingOrderItem.objects.select_related("variant"), pk=item_id)
+    var_sizes = _variant_sizes_qs(item.variant)
+
+    # Пройдёмся по всем допустимым размерам и снимем значения из POST
+    kept_any = False
+    for vs in var_sizes:
+        size = getattr(vs, "size", vs)  # vs может быть Size, если VariantSize нет
+        raw = request.POST.get(f"qty_{size.id}", "").strip()
+        try:
+            qty = int(raw or "0")
+        except ValueError:
+            qty = 0
+
+        obj, _created = models.SewingOrderSizeCount.objects.get_or_create(item=item, size=size)
+        if qty > 0:
+            obj.quantity = qty
+            obj.save(update_fields=["quantity"])
+            kept_any = True
+        else:
+            # нули не храним — удаляем (если был)
+            if obj.pk:
+                obj.delete()
+
+    # (опционально) можно суммировать qty по размерам и синхронизировать item.quantity
+    # total = item.size_counts.aggregate(s=Sum('quantity'))['s'] or 0
+    # if total:
+    #     item.quantity = total
+    #     item.save(update_fields=['quantity'])
+
+    # ответ для твоего fetch: просто успешно
+    return HttpResponse(status=204)

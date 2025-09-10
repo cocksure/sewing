@@ -1,0 +1,14 @@
+{# sewing/_status_badge.html #}
+{% with s=status|stringformat:"s" %}
+  {% if s == "1" %}<span class="badge bg-secondary">Новый</span>
+  {% elif s == "3" %}<span class="badge bg-info">В работе</span>
+  {% elif s == "4" %}<span class="badge bg-success">Готов</span>
+  {% elif s == "5" %}<span class="badge bg-dark">Отменён</span>
+  {% elif s == "6" %}<span class="badge bg-warning text-dark">Разработка</span>
+  {% elif s == "7" %}<span class="badge bg-warning text-dark">Согласование</span>
+  {% elif s == "8" %}<span class="badge bg-primary">Подтверждён</span>
+  {% elif s == "9" %}<span class="badge bg-secondary">Прерван</span>
+  {% elif s == "10" %}<span class="badge bg-primary">Принят</span>
+  {% else %}<span class="badge bg-light text-dark">—</span>
+  {% endif %}
+{% endwith %}

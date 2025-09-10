@@ -35,11 +35,18 @@ def model_name(obj):
 # ------- Маппинг явных имён урлов -------
 # Ключ: (app_label, model_name) в нижнем регистре
 # Значение: словарь action -> route_name
+# deystviyalardegi izmneit udlaitlarga
 ROUTE_MAP = {
     ("sewing", "sewingproductmodel"): {
         # если view/delete нет — оставляй "#"
         "view": "#",
         "edit": "sewing:model-edit",  # ← твой реальный роут редактирования
+        "delete": "#",
+    },
+    ("sewing", "sewingorder"): {
+        # если view/delete нет — оставляй "#"
+        "view": "#",
+        "edit": "sewing:orders-edit",  # ← твой реальный роут редактирования
         "delete": "#",
     },
     # добавляй сюда другие модели по мере необходимости

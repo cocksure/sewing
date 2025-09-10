@@ -1,0 +1,260 @@
+{# sewing/templates/sewing/order_edit.html #}
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+	<link rel="stylesheet" href="{% static 'css/style.css' %}">
+	<style>
+        .modal-90w .modal-dialog {
+            max-width: 90vw;
+        }
+
+        .table {
+            font-size: .85rem;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .table th {
+            font-weight: 600;
+            background-color: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+        }
+	</style>
+{% endblock extra_css %}
+
+{% block content %}
+	<div class="admin-content">
+		<div class="container-fluid">
+
+			{# === ВЕРХ: Основные данные заказа === #}
+			<form method="post" class="mb-3">
+				{% csrf_token %}
+				<div class="card">
+					<div class="card-header py-2 d-flex justify-content-between align-items-center">
+						<strong>Заказ #{{ order.pk }}</strong>
+						<button class="btn btn-primary btn-sm" type="submit">
+							<i class="bi bi-save me-1"></i> Сохранить
+						</button>
+					</div>
+
+					<div class="card-body small">
+						<div class="row g-3 row-cols-1 row-cols-lg-4">
+
+							{# 1-я строка #}
+							<div class="col">
+								<label class="form-label mb-1">{{ form.customer.label }}</label>
+								{{ form.customer }}
+							</div>
+
+							<div class="col">
+								<label class="form-label mb-1">{{ form.buyer.label }}</label>
+								{{ form.buyer }}
+							</div>
+
+							<div class="col">
+								<label class="form-label mb-1">{{ form.order_type.label }}</label>
+								{{ form.order_type }}
+							</div>
+
+							<div class="col">
+								<label class="form-label mb-1">Менеджер</label>
+								<div class="form-control-plaintext py-1 px-2 bg-transparent border rounded-3 text-body-emphasis">
+									{{ order.created_by.employee.full_name|default:order.created_by.username }}
+								</div>
+							</div>
+
+							{# 2-я строка #}
+							<div class="col">
+								<label class="form-label mb-1">{{ form.specification.label }}</label>
+								{{ form.specification }}
+							</div>
+
+							<div class="col">
+								<label class="form-label mb-1">{{ form.shipment_date.label }}</label>
+								{{ form.shipment_date }}
+							</div>
+
+							<div class="col">
+								<label class="form-label mb-1">{{ form.status.label }}</label>
+								{{ form.status }}
+							</div>
+
+							<div class="col">
+								<label class="form-label mb-1">Создано</label>
+								<div class="form-control-plaintext py-1 px-2 bg-transparent border rounded-3 text-body-secondary">
+									{{ order.created_at|date:"d.m.Y H:i" }}
+								</div>
+							</div>
+
+						</div>
+					</div>
+				</div>
+			</form>
+
+			{# === НИЖЕ: Строки заказа (на всю ширину) === #}
+			<div class="card">
+				<div class="card-header py-2 d-flex justify-content-between align-items-center">
+					<strong>Строки заказа</strong>
+					<a class="btn btn-success btn-sm"
+					   data-bs-toggle="modal" data-bs-target="#orderItemFormModal"
+					   href="{% url 'sewing:order-item-add' order.id %}">
+						+ Добавить строку
+					</a>
+				</div>
+
+				<div class="card-body" id="order-items-list"
+				     data-refresh-url="{{ items_partial_url }}">
+					{% include "sewing/_order_items_list.html" with order=order items=order_items %}
+				</div>
+
+
+			</div>
+
+		</div>
+	</div>
+
+	{# Модалки неизменны #}
+	<div class="modal fade" id="orderItemFormModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+
+	<div class="modal fade" id="orderItemSizesModal" tabindex="-1" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered modal-lg">
+			<div class="modal-content"></div>
+		</div>
+	</div>
+{% endblock %}
+
+{% block extra_js %}
+	<script>
+        (function () {
+            const listBoxId = 'order-items-list';
+            const formModalId = 'orderItemFormModal';
+
+            function reloadList(url) {
+                return fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                    .then(r => r.text())
+                    .then(html => {
+                        document.getElementById(listBoxId).innerHTML = html;
+                    });
+            }
+
+            // Открытие формы в модалке
+            document.getElementById(formModalId)?.addEventListener('show.bs.modal', (e) => {
+                const trg = e.relatedTarget;
+                const url = trg && trg.getAttribute('href');
+                if (!url) return;
+                fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                    .then(r => r.text())
+                    .then(html => {
+                        document.querySelector('#' + formModalId + ' .modal-content').innerHTML = html;
+                        window.reinitSelect2?.(document.getElementById(formModalId));
+                    });
+            });
+
+            // Сабмит формы строки
+            document.getElementById(formModalId)?.addEventListener('submit', (e) => {
+                const form = e.target.closest('.js-crud-form');
+                if (!form) return;
+                e.preventDefault();
+
+                fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {'X-Requested-With': 'XMLHttpRequest'}
+                })
+                    .then(res => {
+                        if (res.status === 204) {
+                            const modalEl = document.getElementById(formModalId);
+                            modalEl.querySelector('[data-bs-dismiss="modal"], .btn-close')?.click();
+
+                            const url = document.getElementById(listBoxId)?.dataset?.refreshUrl;
+                            if (url) return reloadList(url);
+                            return null;
+                        }
+                        return res.text().then(html => {
+                            document.querySelector('#' + formModalId + ' .modal-content').innerHTML = html;
+                            window.reinitSelect2?.(document.getElementById(formModalId));
+                        });
+                    });
+            });
+
+            // Удаление строки
+            document.addEventListener('submit', (e) => {
+                const del = e.target.closest('.js-orderitem-delete');
+                if (!del) return;
+                e.preventDefault();
+                fetch(del.action, {
+                    method: 'POST',
+                    body: new FormData(del),
+                    headers: {'X-Requested-With': 'XMLHttpRequest'}
+                })
+                    .then(res => {
+                        if (res.status === 204) {
+                            const url = document.getElementById(listBoxId)?.dataset?.refreshUrl;
+                            if (url) return reloadList(url);
+                        }
+                        return null;
+                    });
+            });
+        })();
+	</script>
+	<script>
+        (function () {
+            const listBoxId = 'order-items-list';
+            const sizesModalId = 'orderItemSizesModal';
+
+            function reloadList(url) {
+                return fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                    .then(r => r.text())
+                    .then(html => {
+                        document.getElementById(listBoxId).innerHTML = html;
+                    });
+            }
+
+            // Открытие модалки “Размеры”
+            document.getElementById(sizesModalId)?.addEventListener('show.bs.modal', (e) => {
+                const trg = e.relatedTarget;
+                const url = trg && trg.getAttribute('href');
+                if (!url) return;
+                fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                    .then(r => r.text())
+                    .then(html => {
+                        document.querySelector('#' + sizesModalId + ' .modal-content').innerHTML = html;
+                    });
+            });
+
+            // Сабмит формы “Размеры”
+            document.getElementById(sizesModalId)?.addEventListener('submit', (e) => {
+                const form = e.target.closest('.js-order-sizes-form');
+                if (!form) return;
+                e.preventDefault();
+
+                fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {'X-Requested-With': 'XMLHttpRequest'}
+                })
+                    .then(res => {
+                        if (res.status === 204) {
+                            // закрыть модалку
+                            const modalEl = document.getElementById(sizesModalId);
+                            modalEl.querySelector('[data-bs-dismiss="modal"], .btn-close')?.click();
+
+                            // перерисовать список
+                            const url = document.getElementById(listBoxId)?.dataset?.refreshUrl;
+                            if (url) return reloadList(url);
+                        } else {
+                            return res.text().then(html => {
+                                document.querySelector('#' + sizesModalId + ' .modal-content').innerHTML = html;
+                            });
+                        }
+                    });
+            });
+        })();
+	</script>
+{% endblock %}
+

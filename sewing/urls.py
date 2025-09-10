@@ -5,7 +5,7 @@ from sewing import views
 app_name = 'sewing'
 
 urlpatterns = [
-    path('', views.ModelsListView.as_view(), name='models-list'),
+    path('models/', views.ModelsListView.as_view(), name='models-list'),
     path("models/create/", views.SewingProductModelCreateView.as_view(), name="model-create"),
     path("models/<int:pk>/edit/", views.SewingProductModelEditView.as_view(), name="model-edit"),
     path("variants/<int:pk>/edit/", views.VariantEditView.as_view(), name="variant-edit"),
@@ -46,5 +46,22 @@ urlpatterns = [
     path("variant/<int:variant_id>/sizes/create/", views.VariantSizeCreateView.as_view(), name="variant-size-create"),
     path("variant/size/<int:pk>/edit/", views.VariantSizeUpdateView.as_view(), name="variant-size-edit"),
     path("variant/size/<int:pk>/delete/", views.VariantSizeDeleteView.as_view(), name="variant-size-delete"),
+
+    # ------------- Orders strat
+    path('orders/', views.SewingOrderListView.as_view(), name='orders-list'),
+
+    path("order-create", views.SewingOrderCreateView.as_view(), name="order-create"),
+    path("orders/<int:pk>/edit/", views.SewingOrderEditView.as_view(), name="order-edit"),
+
+    # AJAX-модалки для строк
+    path("orders/<int:pk>/edit/", views.SewingOrderEditView.as_view(), name="orders-edit"),
+    path("orders/<int:pk>/items/partial/", views.order_items_partial, name="order-items-list"),
+
+    path("orders/<int:pk>/items/add/", views.order_item_form, name="order-item-add"),
+    path("order-items/<int:item_id>/edit/", views.order_item_form, name="order-item-edit"),
+    path("order-items/<int:item_id>/delete/", views.order_item_delete, name="order-item-delete"),
+
+    path("order-items/<int:item_id>/sizes/", views.order_item_sizes_modal, name="order-item-sizes"),
+    path("order-items/<int:item_id>/sizes/save/", views.order_item_sizes_save, name="order-item-sizes-save"),
 
 ]

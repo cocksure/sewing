@@ -114,6 +114,28 @@ body {
   font-size: .9rem;
 }
 
+/* Контейнер со скроллом для таблицы строк заказа */
+.table-scroll {
+  max-height: 60vh;        /* сколько видно по высоте; при необходимости подстрой */
+  overflow: auto;
+}
+
+/* Липкая шапка таблицы внутри прокручиваемого контейнера */
+.table-sticky thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bs-body-bg, #fff);
+  z-index: 2;
+  /* лёгкая тень, чтобы отделить от строк при скролле */
+  box-shadow: 0 1px 0 rgba(0,0,0,.05);
+}
+
+/* Чуть уплотнить ячейки для компактности */
+.table.table-sticky td, .table.table-sticky th {
+  vertical-align: middle;
+  white-space: nowrap;   /* чтобы колонки не «ломались» */
+}
+
 
 
 /* Адаптивность */
